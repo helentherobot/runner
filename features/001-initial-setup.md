@@ -20,6 +20,7 @@ helen-runner solves this by providing a standalone, framework-agnostic library w
 ### Target Outcome
 
 This feature will build the initial `helen-runner` repo so that consumers can:
+
 - Define model profiles with queue settings and construct a `Runner` from config
 - Execute single-turn stateless prompts via `runner.run(recipe, args)`
 - Run multi-turn sessions with explicit messages ownership via `send()`
@@ -108,6 +109,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
    - Each smoke test: construct a minimal `Runner` with the provider under test, run a trivial recipe (e.g. `prompt: 'Say hello'`), assert `result.text` is a non-empty string and `result.usage.inputTokens > 0`
 
 7. **Define core types in `src/types.ts`**
+
    ```ts
    export interface QueueConfig {
      maxConcurrent: number
@@ -117,8 +119,8 @@ This feature will build the initial `helen-runner` repo so that consumers can:
    }
 
    export interface ModelProfile {
-     provider: string            // 'open-router' | 'google' | 'openai' | 'anthropic' | 'ollama'
-     model: string               // provider-specific model key
+     provider: string // 'open-router' | 'google' | 'openai' | 'anthropic' | 'ollama'
+     model: string // provider-specific model key
      contextWindowTokens: number
      requestTimeoutMs: number
      queue: QueueConfig
@@ -153,6 +155,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 #### Steps
 
 1. **Define `Provider` interface in `src/providers/provider.ts`**
+
    ```ts
    import type { LanguageModel } from 'ai'
 
@@ -160,6 +163,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
      model(key: string): LanguageModel
    }
    ```
+
    This is a thin abstraction over the Vercel AI SDK's `LanguageModel`.
 
 2. **Implement `ProviderQueue` in `src/providers/queue.ts`**
@@ -244,21 +248,25 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 #### Steps
 
 1. **Define `Recipe<TArgs>` in `src/recipes/types.ts`**
+
    ```ts
    export interface Recipe<TArgs extends unknown[] = unknown[]> {
-     profile: string                     // key into RunnerConfig.profiles
-     prompt: (...args: TArgs) => string  // prompt factory
-     maxOutputTokens?: number            // optional cap; defaults to profile's contextWindowTokens
+     profile: string // key into RunnerConfig.profiles
+     prompt: (...args: TArgs) => string // prompt factory
+     maxOutputTokens?: number // optional cap; defaults to profile's contextWindowTokens
    }
    ```
+
    > `effort`, `postTo` from Helen's recipe type are intentionally omitted — they are Helen-specific concepts.
 
 2. **Implement `recipe()` factory helper in `src/recipes/recipe.ts`**
+
    ```ts
    export function recipe<TArgs extends unknown[]>(def: Recipe<TArgs>): Recipe<TArgs> {
      return def
    }
    ```
+
    Thin factory for type inference — callers don't need to annotate `Recipe<[string, number]>` explicitly.
 
 3. **Implement `runRecipe()` in `src/recipes/run-recipe.ts`**
@@ -272,6 +280,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
    - No tools, no messages, no system prompt — purely stateless
 
 4. **Define `RunResult` in `src/recipes/types.ts`**
+
    ```ts
    export interface RunResult {
      text: string
@@ -284,6 +293,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
    ```
 
 5. **Expose `runner.run()` on the `Runner` class** (wired up in Phase 6 but defined here)
+
    ```ts
    async run<TArgs extends unknown[]>(recipe: Recipe<TArgs>, ...args: TArgs): Promise<RunResult>
    ```
@@ -305,6 +315,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 #### Steps
 
 1. **Define `DiscoverableTool` in `src/session/types.ts`**
+
    ```ts
    import type { CoreTool } from 'ai'
 
@@ -320,7 +331,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
    }
 
    export interface SendResult {
-     messages: CoreMessage[]   // from 'ai' (Vercel AI SDK); last entry is the assistant's response
+     messages: CoreMessage[] // from 'ai' (Vercel AI SDK); last entry is the assistant's response
      usage: {
        inputTokens: number
        outputTokens: number
@@ -338,17 +349,19 @@ This feature will build the initial `helen-runner` repo so that consumers can:
    b. **Resolve active tools**: scan `messages` for assistant text content, joining into a single string. For each tool in `options.tools`, include it if it has no `keywords` or if any keyword appears in the messages text.
    c. **Build the message array**: append `{ role: 'user', content: message }` to `messages`.
    d. **Call `generateText`**:
-      ```ts
-      const result = await queue.enqueue(options.profile, () =>
-        generateText({
-          model,
-          system: options.systemPrompt,
-          messages: updatedMessages,
-          tools: activeTools,
-          maxTokens: resolvedProfile.contextWindowTokens,
-        })
-      )
-      ```
+
+   ```ts
+   const result = await queue.enqueue(options.profile, () =>
+     generateText({
+       model,
+       system: options.systemPrompt,
+       messages: updatedMessages,
+       tools: activeTools,
+       maxTokens: resolvedProfile.contextWindowTokens,
+     }),
+   )
+   ```
+
    e. **Append assistant response** to messages: `{ role: 'assistant', content: result.text }`.
    f. **Return** `{ messages: updatedMessages, usage: { ... } }`.
 
@@ -384,6 +397,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 #### Steps
 
 1. **Implement `Runner` in `src/runner.ts`**
+
    ```ts
    class Runner {
      readonly config: RunnerConfig
@@ -391,7 +405,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 
      constructor(config: RunnerConfig) {
        this.config = config
-       this.#registry = new ProviderRegistry(config)  // resolves secrets once at construction
+       this.#registry = new ProviderRegistry(config) // resolves secrets once at construction
      }
 
      async run<TArgs extends unknown[]>(r: Recipe<TArgs>, ...args: TArgs): Promise<RunResult> {
@@ -399,11 +413,13 @@ This feature will build the initial `helen-runner` repo so that consumers can:
      }
    }
    ```
+
    - `Runner` owns a `ProviderRegistry` instance (not a module-level singleton — avoids cross-test contamination)
    - No `runner.session()` — callers construct a `SessionOptions` object directly and pass it to `send()`
    - `send()` is a standalone exported function; it accepts the runner to access config/registry/queues
 
 2. **Create `src/index.ts`** — the library's public surface:
+
    ```ts
    // Core
    export { Runner } from './runner.js'
@@ -437,16 +453,20 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 ## Progress
 
 ### Completed
-- Repository created with LICENSE and feature doc template
 
-### In Progress
+- Repository created with LICENSE and feature doc template
 - Phase 1: Project scaffold + core types
 
+### In Progress
+
+- None
+
 ### Blocked
+
 - None
 
 ### To Do
-- Phase 1: Project scaffold + core types
+
 - Phase 2: Provider abstraction + ProviderQueue
 - Phase 3: Provider implementations + ProviderRegistry
 - Phase 4: Recipe system
@@ -456,26 +476,33 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 ## Technical Notes
 
 ### Why `Runner`-scoped registry, not module-level singletons
+
 Helen's `registry.ts` uses module-level `factories`/`instances` objects. This means tests that import the registry share global state across test files. helen-runner scopes the registry to the `Runner` instance instead, so each `new Runner(config)` in tests gets a clean slate.
 
 ### Why `send()` is a standalone function, not a method
+
 Helen's `Session.prompt()` is a method on a stateful object. The new design makes `send()` a standalone function so it is trivially testable without instantiating a class. The `Runner` is passed as the first argument (for access to config and registry); `SessionOptions` carries the static session config; the `messages` array carries the mutable conversation state. This separation makes the data flow explicit: nothing is hidden in `this`.
 
 ### Vercel AI SDK types vs `@anthropic-ai/claude-agent-sdk`
+
 helen-runner wraps the Vercel AI SDK (`ai`) and its provider adapters — not the Claude Agent SDK. The Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`) is used by Friday and Helen's ACP session layer. helen-runner's `generateText` call uses Vercel AI SDK's `CoreMessage[]` as messages format.
 
 ### Provider coupling to `generateText`
+
 The provider implementations expose `model(key): LanguageModel`. The `LanguageModel` type is from `ai` (Vercel AI SDK). This means all providers return a compatible object regardless of the underlying provider SDK. `generateText` accepts any `LanguageModel`, so there is no per-provider divergence in how calls are made.
 
 ### Secrets
+
 The `Runner` accepts whatever values are in `config.secrets` and passes them straight through to the provider constructors. How those values get populated — env vars, a secrets manager, hardcoded strings in tests — is entirely the consumer's concern. helen-runner never reads `process.env`.
 
 ### Progressive tool discovery and Vercel AI SDK tool format
+
 `DiscoverableTool extends CoreTool` from `ai`. The Vercel AI SDK's `CoreTool` shape requires `description: string`, `parameters: ZodSchema`, and `execute?: Function`. The `keywords?(): string[]` field is added by helen-runner and stripped before passing to `generateText` (Vercel AI SDK would ignore unknown fields, but stripping is cleaner).
 
 ## Files Modified/Created
 
 ### Services / Core
+
 - `package.json` — project manifest
 - `tsconfig.json` — TypeScript config
 - `vitest.config.ts` — unit test runner config (excludes `*.smoke.ts`)
@@ -502,6 +529,7 @@ The `Runner` accepts whatever values are in `config.secrets` and passes them str
 - `src/index.ts` — public exports
 
 ### Tests
+
 - `tests/types.test.ts` — type shape validation
 - `tests/providers/queue.test.ts` — `ProviderQueue` concurrency + rate limiting
 - `tests/providers/registry.test.ts` — singleton behavior, unknown keys
@@ -521,11 +549,13 @@ The `Runner` accepts whatever values are in `config.secrets` and passes them str
 - `tests/integration/runner.test.ts` — full round-trip
 
 ## Questions/Decisions Needed
+
 - [ ] Should `ProviderQueue` use a third-party library (`p-queue`, `bottleneck`) for rate limiting, or implement the token bucket manually? Manual is zero-dep; p-queue is well-tested. Decision needed before Phase 2.
 - [ ] Should `send()` support tool-use turns (where the model calls a tool and helen-runner executes it and continues)? Or is the initial scope just single-model-turn per `send()` call? Clarify before Phase 5.
 - [ ] Should `SessionOptions` accept a `maxTurns` or `maxBudgetUsd` cap (Vercel AI SDK supports these on `generateText`)? Or leave them as optional per-`send()` overrides?
 
 ## Decisions Made
+
 - **No streaming**: `generateText` only; `streamText` is out of scope.
 - **`send()` is a pure function**: messages in, `{ messages, usage }` out. Runner holds no inter-call state.
 - **Config at construction time**: `RunnerConfig` passed to `Runner` constructor; not read lazily.
@@ -536,5 +566,6 @@ The `Runner` accepts whatever values are in `config.secrets` and passes them str
 ## Session History
 
 ### Session 1
+
 - Design note written (note 180) capturing full API surface, types, design constraints, and key files to extract from Helen.
 - Planning complete: 6-phase plan written to feature doc.
