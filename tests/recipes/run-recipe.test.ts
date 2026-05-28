@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
 import type { Recipe } from '../../src/recipes/types.js'
+import type { RunOptions } from '../../src/recipes/types.js'
 import type { ModelProfile } from '../../src/types.js'
+import { RequestCancelledError } from '../../src/errors.js'
 
 const mockEnqueue = vi.fn()
 const mockModel = {}
@@ -165,5 +167,87 @@ describe('runRecipe()', () => {
     }
 
     await expect(runRecipe(makeRunner(), r, [])).rejects.toThrow('Unknown profile: nonexistent')
+  })
+
+  it('passes abortSignal derived from profile.requestTimeoutMs to generateText', async () => {
+    const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+
+    mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+    vi.mocked(generateText).mockResolvedValue({
+      text: 'ok',
+      usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+    await runRecipe(makeRunner(), r, [])
+
+    const call = vi.mocked(generateText).mock.calls[0]?.[0]
+    expect(call).toBeDefined()
+    expect(call!.abortSignal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('merges caller-supplied abortSignal with the timeout signal', async () => {
+    const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+    const controller = new AbortController()
+    const options: RunOptions = { abortSignal: controller.signal }
+
+    mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+    vi.mocked(generateText).mockResolvedValue({
+      text: 'ok',
+      usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+    await runRecipe(makeRunner(), r, [], undefined, options)
+
+    const call = vi.mocked(generateText).mock.calls[0]?.[0]
+    expect(call).toBeDefined()
+    expect(call!.abortSignal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('passes maxRetries from profile to generateText', async () => {
+    const profileWithRetries: ModelProfile = { ...baseProfile, maxRetries: 5 }
+    const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+
+    mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+    vi.mocked(generateText).mockResolvedValue({
+      text: 'ok',
+      usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+    await runRecipe(makeRunner(profileWithRetries), r, [])
+
+    const call = vi.mocked(generateText).mock.calls[0]?.[0]
+    expect(call).toBeDefined()
+    expect(call!.maxRetries).toBe(5)
+  })
+
+  it('defaults maxRetries to 3 when profile omits it', async () => {
+    const profileNoRetries: ModelProfile = { ...baseProfile, maxRetries: undefined }
+    const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+
+    mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+    vi.mocked(generateText).mockResolvedValue({
+      text: 'ok',
+      usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+    await runRecipe(makeRunner(profileNoRetries), r, [])
+
+    const call = vi.mocked(generateText).mock.calls[0]?.[0]
+    expect(call).toBeDefined()
+    expect(call!.maxRetries).toBe(3)
+  })
+
+  it('throws RequestCancelledError when caller signal is already aborted', async () => {
+    const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+    const controller = new AbortController()
+    controller.abort()
+    const options: RunOptions = { abortSignal: controller.signal }
+
+    mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+    vi.mocked(generateText).mockRejectedValue(new Error('aborted'))
+
+    await expect(runRecipe(makeRunner(), r, [], undefined, options)).rejects.toThrow(
+      RequestCancelledError,
+    )
   })
 })

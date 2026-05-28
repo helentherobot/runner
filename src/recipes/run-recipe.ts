@@ -1,7 +1,8 @@
 import { generateText } from 'ai'
 import type { RunnerConfig } from '../types.js'
 import type { ProviderRegistry } from '../providers/registry.js'
-import type { Recipe, RunResult } from './types.js'
+import type { Recipe, RunResult, RunOptions } from './types.js'
+import { RequestCancelledError } from '../errors.js'
 
 export interface RunnerInstance {
   config: RunnerConfig
@@ -13,6 +14,7 @@ export async function runRecipe<TArgs extends unknown[]>(
   r: Recipe<TArgs>,
   args: TArgs,
   scope?: string,
+  options?: RunOptions,
 ): Promise<RunResult> {
   const profile = runner.config.profiles[r.profile]
 
@@ -28,24 +30,42 @@ export async function runRecipe<TArgs extends unknown[]>(
   const prompt = r.prompt(...args)
   const maxOutputTokens = r.maxOutputTokens ?? profile.contextWindowTokens
 
-  const result = await queue.enqueue(scope ?? r.profile, () =>
-    generateText({ model, prompt, maxOutputTokens }),
-  )
-
-  const inputTokens = result.usage.inputTokens ?? 0
-  const outputTokens = result.usage.outputTokens ?? 0
-
-  const totalCostUsd = profile.costs
-    ? (inputTokens / 1_000_000) * profile.costs.inputPer1M +
-      (outputTokens / 1_000_000) * profile.costs.outputPer1M
+  const timeoutSignal = profile.requestTimeoutMs
+    ? AbortSignal.timeout(profile.requestTimeoutMs)
     : undefined
 
-  return {
-    text: result.text,
-    usage: {
-      inputTokens,
-      outputTokens,
-      totalCostUsd,
-    },
+  const signals = [timeoutSignal, options?.abortSignal].filter((s): s is AbortSignal => !!s)
+  const abortSignal = signals.length > 0 ? AbortSignal.any(signals) : undefined
+
+  try {
+    const result = await queue.enqueue(scope ?? r.profile, () =>
+      generateText({
+        model,
+        prompt,
+        maxOutputTokens,
+        maxRetries: profile.maxRetries ?? 3,
+        abortSignal,
+      }),
+    )
+
+    const inputTokens = result.usage.inputTokens ?? 0
+    const outputTokens = result.usage.outputTokens ?? 0
+
+    const totalCostUsd = profile.costs
+      ? (inputTokens / 1_000_000) * profile.costs.inputPer1M +
+        (outputTokens / 1_000_000) * profile.costs.outputPer1M
+      : undefined
+
+    return {
+      text: result.text,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalCostUsd,
+      },
+    }
+  } catch (err) {
+    if (options?.abortSignal?.aborted) throw new RequestCancelledError()
+    throw err
   }
 }

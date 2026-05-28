@@ -1,3 +1,7 @@
+export interface RunOptions {
+  abortSignal?: AbortSignal
+}
+
 export interface Recipe<TArgs extends unknown[] = unknown[]> {
   profile: string
   prompt: (...args: TArgs) => string

@@ -1,5 +1,5 @@
 import type { RunnerConfig } from './types.js'
-import type { Recipe, RunResult } from './recipes/types.js'
+import type { Recipe, RunResult, RunOptions } from './recipes/types.js'
 import { ProviderRegistry } from './providers/registry.js'
 import { runRecipe } from './recipes/run-recipe.js'
 
@@ -20,7 +20,8 @@ export class Runner {
     r: Recipe<TArgs>,
     args: TArgs,
     scope?: string,
+    options?: RunOptions,
   ): Promise<RunResult> {
-    return runRecipe(this, r, args, scope)
+    return runRecipe(this, r, args, scope, options)
   }
 }
