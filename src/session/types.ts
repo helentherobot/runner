@@ -1,6 +1,7 @@
-import type { CoreTool, CoreMessage } from 'ai'
+import type { Tool, CoreMessage } from 'ai'
+import type { ZodTypeAny } from 'zod'
 
-export interface DiscoverableTool extends CoreTool {
+export type DiscoverableTool = Tool<ZodTypeAny, unknown> & {
   name: string
   keywords?(): string[]
 }

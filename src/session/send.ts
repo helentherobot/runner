@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import type { CoreMessage, ToolSet } from 'ai'
+import type { CoreMessage, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
 import { discoverTools } from './discover-tools.js'
@@ -26,7 +26,7 @@ export async function send(
   const toolSet: ToolSet | undefined =
     activeTools.length > 0
       ? Object.fromEntries(
-          activeTools.map(({ name, keywords: _keywords, ...rest }) => [name, rest]),
+          activeTools.map(({ name, keywords: _keywords, ...rest }) => [name, rest as Tool]),
         )
       : undefined
 

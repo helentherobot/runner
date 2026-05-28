@@ -57,7 +57,7 @@ export class ProviderRegistry {
       const model = provider.model(profile.model)
 
       warmupFn = async () => {
-        await generateText({ model, prompt: 'hi', maxOutputTokens: 1 })
+        await generateText({ model, prompt: 'hi', maxTokens: 1 })
       }
     }
 
