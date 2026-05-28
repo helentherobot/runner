@@ -1,43 +1,43 @@
 {
-  "name": "@helentherobot/runner",
-  "version": "0.1",
-  "type": "module",
-  "main": "./src/index.js",
-  "exports": {
-    ".": "./src/index.js"
-  },
-  "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:smoke": "node --env-file .env node_modules/.bin/vitest run --config vitest.smoke.config.ts",
-    "check": "concurrently 'tsc --noEmit' 'npm run format:check' 'npm run test'",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
-  },
-  "dependencies": {
-    "@ai-sdk/provider": "3.0.10",
-    "@ai-sdk/provider-utils": "4.0.27",
-    "@ai-sdk/anthropic": "3.0.80",
-    "@ai-sdk/google": "3.0.80",
-    "@ai-sdk/openai": "3.0.66",
-    "@openrouter/ai-sdk-provider": "2.9.0",
-    "ai": "6.0.191",
-    "ollama-ai-provider": "1.2.0"
-  },
-  "prettier": {
-    "semi": false,
-    "singleQuote": true,
-    "printWidth": 100,
-    "trailingComma": "all"
-  },
-  "devDependencies": {
-    "@types/json-schema": "7.0.15",
-    "@types/node": "25.9.1",
-    "@vitest/coverage-v8": "4.1.7",
-    "concurrently": "10.0.0",
-    "prettier": "3.8.3",
-    "tsx": "4.22.3",
-    "typescript": "6.0.3",
-    "vitest": "4.1.7"
-  }
+    "name": "@helentherobot/runner",
+    "version": "0.1.0",
+    "type": "module",
+    "main": "./src/index.js",
+    "exports": {
+        ".": "./src/index.js"
+    },
+    "scripts": {
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:smoke": "node --env-file .env node_modules/.bin/vitest run --config vitest.smoke.config.ts",
+        "check": "concurrently 'tsc --noEmit' 'npm run format:check' 'npm run test'",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "dependencies": {
+        "@ai-sdk/provider": "3.0.10",
+        "@ai-sdk/provider-utils": "4.0.27",
+        "@ai-sdk/anthropic": "3.0.80",
+        "@ai-sdk/google": "3.0.80",
+        "@ai-sdk/openai": "3.0.66",
+        "@openrouter/ai-sdk-provider": "2.9.0",
+        "ai": "6.0.191",
+        "ollama-ai-provider": "1.2.0"
+    },
+    "prettier": {
+        "semi": false,
+        "singleQuote": true,
+        "printWidth": 100,
+        "trailingComma": "all"
+    },
+    "devDependencies": {
+        "@types/json-schema": "7.0.15",
+        "@types/node": "25.9.1",
+        "@vitest/coverage-v8": "4.1.7",
+        "concurrently": "10.0.0",
+        "prettier": "3.8.3",
+        "tsx": "4.22.3",
+        "typescript": "6.0.3",
+        "vitest": "4.1.7"
+    }
 }
