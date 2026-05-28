@@ -18,12 +18,14 @@ export interface ModelProfile {
   providerOptions?: Record<string, unknown>
 }
 
+export interface ResolvedSecrets {
+  openRouter?: string
+  google?: string
+  openAi?: string
+  anthropic?: string
+}
+
 export interface RunnerConfig {
   profiles: Record<string, ModelProfile>
-  secrets?: {
-    openRouter?: string
-    google?: string
-    openAi?: string
-    anthropic?: string
-  }
+  secrets?: ResolvedSecrets
 }
