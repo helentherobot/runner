@@ -11,6 +11,7 @@ export interface SessionOptions {
   systemPrompt?: string
   tools?: DiscoverableTool[]
   scope?: string
+  abortSignal?: AbortSignal
 }
 
 export interface SendResult {

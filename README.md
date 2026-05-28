@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@helentherobot/runner)](https://www.npmjs.com/package/@helentherobot/runner)
 
-A thin, opinionated wrapper around the [Vercel AI SDK](https://sdk.vercel.ai/) that handles model profiles, per-profile queue management, and multi-turn session execution.
+A thin, opinionated wrapper around the [Vercel AI SDK](https://sdk.vercel.ai/) that handles model profiles, per-profile queue management, multi-turn session execution, and timeout/cancellation.
 
 Runner has no opinion about working directories, databases, Telegram, users, or application-specific tooling. It is the base layer everything else builds on.
 
@@ -27,7 +27,8 @@ const runner = new Runner({
       provider: 'google',
       model: 'gemini-2.0-flash',
       contextWindowTokens: 128_000,
-      requestTimeoutMs: 30_000,
+      requestTimeoutMs: 30_000, // per-step timeout for send(); single-step timeout for run()
+      maxRetries: 3, // optional, defaults to 3 at the call site
       queue: {
         maxConcurrent: 4,
         requestsPerMinute: 60,
@@ -64,10 +65,20 @@ console.log(result.text)
 console.log(result.usage) // { inputTokens, outputTokens, totalCostUsd }
 
 // Optional: pass a scope string for affinity-mode prioritisation
-const result2 = await runner.run(summarise, [articleText], 'session-abc')
+const result2 = await runner.run(summarise, [articleText], { scope: 'session-abc' })
+
+// Optional: pass an AbortSignal for external cancellation
+const controller = new AbortController()
+const result3 = await runner.run(summarise, [articleText], { abortSignal: controller.signal })
+
+// Both together
+const result4 = await runner.run(summarise, [articleText], {
+  scope: 'session-abc',
+  abortSignal: controller.signal,
+})
 ```
 
-`runner.run()` enqueues the call through the profile's `ProviderQueue`, so concurrency and rate limits are enforced automatically.
+`runner.run()` enqueues the call through the profile's `ProviderQueue`, so concurrency and rate limits are enforced automatically. `requestTimeoutMs` from the profile is applied as a hard timeout for each call; if the call times out it is retried up to `maxRetries` times before throwing.
 
 ### Sessions — multi-turn conversations
 
@@ -77,22 +88,54 @@ const result2 = await runner.run(summarise, [articleText], 'session-abc')
 import { send } from '@helentherobot/runner'
 import type { ModelMessage, SessionOptions } from '@helentherobot/runner'
 
+const controller = new AbortController()
+
 const options: SessionOptions = {
   profile: 'flash',
   systemPrompt: 'You are a helpful assistant.',
   scope: 'user-123', // optional — used for affinity-mode prioritisation
+  abortSignal: controller.signal, // optional — cancels the in-flight call immediately
 }
 
 let messages: ModelMessage[] = []
 
-// first run
+// first turn
 messages = (await send(runner, options, messages, 'What is the capital of France?')).messages
 
-// second run
+// second turn
 messages = (await send(runner, options, messages, 'What language do they speak there?')).messages
 ```
 
 Each call appends a `{ role: 'user' }` entry, calls the model, then appends the `{ role: 'assistant' }` response. Pass `result.messages` into the next call to carry the full history forward.
+
+`send()` applies `requestTimeoutMs` from the profile as a **per-step** timeout — the clock resets after each LLM step, so multi-step tool-call flows are not punished. On timeout the message state is rolled back to the pre-call snapshot and the call is retried up to `maxRetries` times with a ~1s backoff.
+
+### Timeout and cancellation errors
+
+Both `send()` and `runner.run()` throw typed errors so callers can handle each failure mode explicitly:
+
+```ts
+import { send, RequestTimeoutError, RequestCancelledError } from '@helentherobot/runner'
+
+try {
+  messages = (await send(runner, options, messages, userMessage)).messages
+} catch (err) {
+  if (err instanceof RequestTimeoutError) {
+    // timed out and exhausted all retries — e.g. surface a "try again" message
+    console.error(err.message) // "Request timed out after 3 retries"
+  } else if (err instanceof RequestCancelledError) {
+    // the AbortSignal passed in options was aborted by the caller
+    console.error('Request was cancelled')
+  } else {
+    throw err
+  }
+}
+```
+
+| Error                   | When thrown                                                      |
+| ----------------------- | ---------------------------------------------------------------- |
+| `RequestTimeoutError`   | `requestTimeoutMs` fired and all retries were exhausted          |
+| `RequestCancelledError` | The caller's `abortSignal` was aborted before the call completed |
 
 ### Tools and progressive discovery
 
@@ -149,7 +192,7 @@ Each model profile gets its own `ProviderQueue` (created lazily by the registry)
 
 **No streaming.** Only `generateText` from the Vercel AI SDK. `streamText` is out of scope.
 
-**`send()` is pure.** It takes messages in and returns `{ messages, usage }` out. Nothing is stored between calls. The runner itself holds no conversation state.
+**`send()` is pure.** It takes messages in and returns `{ messages, usage }` out. Nothing is stored between calls. The runner itself holds no conversation state. On timeout-triggered retries, `send()` rolls the message array back to the pre-call snapshot before re-trying, so the caller always receives a consistent view.
 
 **Registry is scoped to the `Runner` instance.** Providers and queues are not module-level singletons. Each `new Runner(config)` gets a clean registry, which avoids cross-test contamination and makes multiple runners with different configs straightforward.
 

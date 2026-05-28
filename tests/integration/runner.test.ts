@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SessionOptions } from '../../src/session/types.js'
 import type { RunnerConfig } from '../../src/types.js'
+import type { RunOptions } from '../../src/recipes/types.js'
+import { RequestCancelledError } from '../../src/errors.js'
 
 vi.mock('ai', () => ({
   generateText: vi.fn(),
@@ -135,5 +137,55 @@ describe('Runner integration', () => {
 
     expect(firstQueueGetCall).toBeDefined()
     expect(secondQueueGetCall).toBeDefined()
+  })
+
+  it('runner.run() threads abortSignal to generateText', async () => {
+    mockGenerateText('Hello!')
+
+    const runner = new Runner(config)
+    const greet = recipe<[string]>({
+      profile: 'flash',
+      prompt: (name) => `Say hello to ${name}`,
+    })
+    const controller = new AbortController()
+    const options: RunOptions = { abortSignal: controller.signal }
+
+    await runner.run(greet, ['world'], options)
+
+    const call = vi.mocked(generateText).mock.calls[0]?.[0]
+    expect(call).toBeDefined()
+    expect(call!.abortSignal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('runner.run() produces a merged abortSignal when profile has requestTimeoutMs', async () => {
+    mockGenerateText('Hello!')
+
+    const runner = new Runner(config)
+    const greet = recipe<[]>({
+      profile: 'flash',
+      prompt: () => 'hello',
+    })
+
+    await runner.run(greet, [])
+
+    const call = vi.mocked(generateText).mock.calls[0]?.[0]
+    expect(call).toBeDefined()
+    // flash profile has requestTimeoutMs: 30_000 so a timeout signal is always present
+    expect(call!.abortSignal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('runner.run() throws RequestCancelledError when caller signal is aborted', async () => {
+    const runner = new Runner(config)
+    const greet = recipe<[]>({
+      profile: 'flash',
+      prompt: () => 'hello',
+    })
+    const controller = new AbortController()
+    controller.abort()
+    const options: RunOptions = { abortSignal: controller.signal }
+
+    vi.mocked(generateText).mockRejectedValue(new Error('aborted'))
+
+    await expect(runner.run(greet, [], options)).rejects.toThrow(RequestCancelledError)
   })
 })

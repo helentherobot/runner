@@ -72,6 +72,62 @@ describe('ModelProfile', () => {
   })
 })
 
+describe('ModelProfile maxRetries', () => {
+  it('accepts maxRetries as a number', () => {
+    const profile = {
+      provider: 'openai',
+      model: 'gpt-4o',
+      contextWindowTokens: 128000,
+      requestTimeoutMs: 30000,
+      queue: {
+        maxConcurrent: 2,
+        requestsPerMinute: 60,
+        affinityMode: false,
+        warmup: false,
+      },
+      maxRetries: 3,
+    } satisfies ModelProfile
+
+    expectTypeOf(profile).toExtend<ModelProfile>()
+  })
+
+  it('accepts a profile omitting maxRetries', () => {
+    const profile = {
+      provider: 'openai',
+      model: 'gpt-4o',
+      contextWindowTokens: 128000,
+      requestTimeoutMs: 30000,
+      queue: {
+        maxConcurrent: 2,
+        requestsPerMinute: 60,
+        affinityMode: false,
+        warmup: false,
+      },
+    } satisfies ModelProfile
+
+    expectTypeOf(profile).toExtend<ModelProfile>()
+  })
+
+  it('rejects maxRetries as a string', () => {
+    const bad = {
+      provider: 'openai',
+      model: 'gpt-4o',
+      contextWindowTokens: 128000,
+      requestTimeoutMs: 30000,
+      queue: {
+        maxConcurrent: 2,
+        requestsPerMinute: 60,
+        affinityMode: false as const,
+        warmup: false as const,
+      },
+      maxRetries: 'three',
+    }
+    // @ts-expect-error — maxRetries must be a number, not a string
+    const profile: ModelProfile = bad
+    void profile
+  })
+})
+
 describe('RunnerConfig', () => {
   it('accepts a valid config with no secrets', () => {
     const config = {
