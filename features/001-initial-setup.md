@@ -456,6 +456,7 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 
 - Repository created with LICENSE and feature doc template
 - Phase 1: Project scaffold + core types
+- Phase 2: Provider abstraction + ProviderQueue
 
 ### In Progress
 
@@ -467,7 +468,6 @@ This feature will build the initial `helen-runner` repo so that consumers can:
 
 ### To Do
 
-- Phase 2: Provider abstraction + ProviderQueue
 - Phase 3: Provider implementations + ProviderRegistry
 - Phase 4: Recipe system
 - Phase 5: Session runner + progressive tool discovery
