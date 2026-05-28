@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, expectTypeOf } from 'vitest'
 import { zodSchema } from 'ai'
 import type { ModelMessage } from 'ai'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
@@ -73,6 +73,17 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockGetProvider.mockReturnValue({ model: vi.fn().mockReturnValue(mockModel) })
   mockGetQueue.mockReturnValue({ enqueue: mockEnqueue })
+})
+
+describe('SessionOptions', () => {
+  it('accepts abortSignal', () => {
+    const options: SessionOptions = {
+      profile: 'main',
+      abortSignal: new AbortController().signal,
+    }
+
+    expectTypeOf(options).toExtend<SessionOptions>()
+  })
 })
 
 describe('send()', () => {

@@ -16,6 +16,7 @@ export interface ModelProfile {
     outputPer1M: number
   }
   providerOptions?: Record<string, unknown>
+  maxRetries?: number
 }
 
 export interface ResolvedSecrets {

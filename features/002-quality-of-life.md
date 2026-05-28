@@ -95,11 +95,11 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 
 #### Files touched
 
-| File | Change |
-|---|---|
-| `src/types.ts` | Add `maxRetries?: number` to `ModelProfile` |
-| `src/session/types.ts` | Add `abortSignal?: AbortSignal` to `SessionOptions` |
-| `tests/types.test.ts` | Type-level tests for `maxRetries` |
+| File                         | Change                                                |
+| ---------------------------- | ----------------------------------------------------- |
+| `src/types.ts`               | Add `maxRetries?: number` to `ModelProfile`           |
+| `src/session/types.ts`       | Add `abortSignal?: AbortSignal` to `SessionOptions`   |
+| `tests/types.test.ts`        | Type-level tests for `maxRetries`                     |
 | `tests/session/send.test.ts` | Type-level test for `abortSignal` on `SessionOptions` |
 
 ---
@@ -144,11 +144,11 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 
 #### Files touched
 
-| File | Change |
-|---|---|
-| `src/errors.ts` | New file — `RequestTimeoutError` and `RequestCancelledError` |
-| `src/index.ts` | Export both error classes |
-| `tests/errors.test.ts` | New test file |
+| File                   | Change                                                       |
+| ---------------------- | ------------------------------------------------------------ |
+| `src/errors.ts`        | New file — `RequestTimeoutError` and `RequestCancelledError` |
+| `src/index.ts`         | Export both error classes                                    |
+| `tests/errors.test.ts` | New test file                                                |
 
 ---
 
@@ -253,11 +253,11 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 
 #### Files touched
 
-| File | Change |
-|---|---|
-| `src/session/send.ts` | Retry loop, AbortController, onStepFinish, timeout reset, error classification |
-| `src/errors.ts` | (created in phase 2 — imported here) |
-| `tests/session/send.test.ts` | New test cases for timeout, retry, cancellation |
+| File                         | Change                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| `src/session/send.ts`        | Retry loop, AbortController, onStepFinish, timeout reset, error classification |
+| `src/errors.ts`              | (created in phase 2 — imported here)                                           |
+| `tests/session/send.test.ts` | New test cases for timeout, retry, cancellation                                |
 
 ---
 
@@ -304,9 +304,10 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
      ? AbortSignal.timeout(profile.requestTimeoutMs)
      : undefined
 
-   const abortSignal = [timeoutSignal, options?.abortSignal].filter(Boolean).length > 0
-     ? AbortSignal.any([timeoutSignal, options?.abortSignal].filter((s): s is AbortSignal => !!s))
-     : undefined
+   const abortSignal =
+     [timeoutSignal, options?.abortSignal].filter(Boolean).length > 0
+       ? AbortSignal.any([timeoutSignal, options?.abortSignal].filter((s): s is AbortSignal => !!s))
+       : undefined
    ```
 
    b. Pass to `generateText`:
@@ -347,14 +348,14 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 
 #### Files touched
 
-| File | Change |
-|---|---|
-| `src/recipes/types.ts` (or `src/types.ts`) | Add `RunOptions` interface |
-| `src/runner.ts` | Add `options?: RunOptions` param, thread through to `runRecipe` |
-| `src/recipes/run-recipe.ts` | Accept options, derive merged signal, pass `maxRetries` to `generateText` |
-| `src/index.ts` | Export `RunOptions` |
-| `tests/recipes/run-recipe.test.ts` | New test cases |
-| `tests/integration/runner.test.ts` | New integration test cases |
+| File                                       | Change                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| `src/recipes/types.ts` (or `src/types.ts`) | Add `RunOptions` interface                                                |
+| `src/runner.ts`                            | Add `options?: RunOptions` param, thread through to `runRecipe`           |
+| `src/recipes/run-recipe.ts`                | Accept options, derive merged signal, pass `maxRetries` to `generateText` |
+| `src/index.ts`                             | Export `RunOptions`                                                       |
+| `tests/recipes/run-recipe.test.ts`         | New test cases                                                            |
+| `tests/integration/runner.test.ts`         | New integration test cases                                                |
 
 ---
 
@@ -369,8 +370,8 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 
 #### Files touched
 
-| File | Change |
-|---|---|
+| File           | Change               |
+| -------------- | -------------------- |
 | `package.json` | `"version": "0.2.0"` |
 
 ---
@@ -379,7 +380,7 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 
 ### Completed
 
--
+- Phase 1 — Type system extensions + tests
 
 ### In Progress
 
@@ -390,8 +391,6 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 -
 
 ### To Do
-
-- Phase 1 — Type system extensions + tests
 - Phase 2 — Error classes + tests
 - Phase 3 — Timeout & retry in `send()` + tests
 - Phase 4 — Timeout & retry in `Runner.run()` + tests
