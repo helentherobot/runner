@@ -1,7 +1,7 @@
-import type { Tool, CoreMessage } from 'ai'
-import type { ZodTypeAny } from 'zod'
+import type { Tool, ModelMessage } from 'ai'
 
-export type DiscoverableTool = Tool<ZodTypeAny, unknown> & {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DiscoverableTool = Tool<any, any> & {
   name: string
   keywords?(): string[]
 }
@@ -10,10 +10,11 @@ export interface SessionOptions {
   profile: string
   systemPrompt?: string
   tools?: DiscoverableTool[]
+  scope?: string
 }
 
 export interface SendResult {
-  messages: CoreMessage[]
+  messages: ModelMessage[]
   usage: {
     inputTokens: number
     outputTokens: number

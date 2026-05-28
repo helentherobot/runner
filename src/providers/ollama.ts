@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
-import type { Provider } from './provider.js'
+import type { Provider } from './types.js'
 
 export class OllamaProvider implements Provider {
   readonly #client: ReturnType<typeof createOllama>

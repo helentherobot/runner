@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
-import type { Provider } from './provider.js'
+import type { Provider } from './types.js'
 
 export class OpenAIProvider implements Provider {
   readonly #client: ReturnType<typeof createOpenAI>

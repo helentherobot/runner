@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import type { CoreMessage, Tool, ToolSet } from 'ai'
+import type { ModelMessage, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
 import { discoverTools } from './discover-tools.js'
@@ -7,7 +7,7 @@ import { discoverTools } from './discover-tools.js'
 export async function send(
   runner: RunnerInstance,
   options: SessionOptions,
-  messages: CoreMessage[],
+  messages: ModelMessage[],
   message: string,
 ): Promise<SendResult> {
   const profile = runner.config.profiles[options.profile]
@@ -30,22 +30,22 @@ export async function send(
         )
       : undefined
 
-  const updatedMessages: CoreMessage[] = [...messages, { role: 'user', content: message }]
+  const updatedMessages: ModelMessage[] = [...messages, { role: 'user', content: message }]
 
-  const result = await queue.enqueue(options.profile, () =>
+  const result = await queue.enqueue(options.scope ?? options.profile, () =>
     generateText({
       model,
       system: options.systemPrompt,
       messages: updatedMessages,
       tools: toolSet,
-      maxTokens: profile.contextWindowTokens,
+      maxOutputTokens: profile.contextWindowTokens,
     }),
   )
 
   updatedMessages.push({ role: 'assistant', content: result.text })
 
-  const inputTokens = result.usage.promptTokens
-  const outputTokens = result.usage.completionTokens
+  const inputTokens = result.usage.inputTokens ?? 0
+  const outputTokens = result.usage.outputTokens ?? 0
 
   const totalCostUsd = profile.costs
     ? (inputTokens / 1_000_000) * profile.costs.inputPer1M +

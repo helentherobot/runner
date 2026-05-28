@@ -10,7 +10,7 @@ describe('QueueConfig', () => {
       warmup: true,
     } satisfies QueueConfig
 
-    expectTypeOf(config).toMatchTypeOf<QueueConfig>()
+    expectTypeOf(config).toExtend<QueueConfig>()
   })
 })
 
@@ -29,7 +29,7 @@ describe('ModelProfile', () => {
       },
     } satisfies ModelProfile
 
-    expectTypeOf(profile).toMatchTypeOf<ModelProfile>()
+    expectTypeOf(profile).toExtend<ModelProfile>()
   })
 
   it('accepts a valid shape with optional costs', () => {
@@ -50,7 +50,7 @@ describe('ModelProfile', () => {
       },
     } satisfies ModelProfile
 
-    expectTypeOf(profile).toMatchTypeOf<ModelProfile>()
+    expectTypeOf(profile).toExtend<ModelProfile>()
   })
 
   it('accepts a valid shape with optional providerOptions', () => {
@@ -68,7 +68,7 @@ describe('ModelProfile', () => {
       providerOptions: { transforms: ['middle-out'] },
     } satisfies ModelProfile
 
-    expectTypeOf(profile).toMatchTypeOf<ModelProfile>()
+    expectTypeOf(profile).toExtend<ModelProfile>()
   })
 })
 
@@ -91,7 +91,7 @@ describe('RunnerConfig', () => {
       },
     } satisfies RunnerConfig
 
-    expectTypeOf(config).toMatchTypeOf<RunnerConfig>()
+    expectTypeOf(config).toExtend<RunnerConfig>()
   })
 
   it('accepts a valid config with secrets', () => {
@@ -115,7 +115,7 @@ describe('RunnerConfig', () => {
       },
     } satisfies RunnerConfig
 
-    expectTypeOf(config).toMatchTypeOf<RunnerConfig>()
+    expectTypeOf(config).toExtend<RunnerConfig>()
   })
 
   it('rejects a profile with a missing required field', () => {

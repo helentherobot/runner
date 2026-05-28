@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import type { Provider } from './provider.js'
+import type { Provider } from './types.js'
 
 export class OpenRouterProvider implements Provider {
   readonly #client: ReturnType<typeof createOpenRouter>

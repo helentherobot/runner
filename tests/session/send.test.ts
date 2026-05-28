@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { CoreMessage } from 'ai'
+import { zodSchema } from 'ai'
+import type { ModelMessage } from 'ai'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
 import type { ModelProfile } from '../../src/types.js'
 import type { DiscoverableTool, SessionOptions } from '../../src/session/types.js'
@@ -10,9 +11,13 @@ const mockModel = {}
 const mockGetProvider = vi.fn().mockReturnValue({ model: vi.fn().mockReturnValue(mockModel) })
 const mockGetQueue = vi.fn().mockReturnValue({ enqueue: mockEnqueue })
 
-vi.mock('ai', () => ({
-  generateText: vi.fn(),
-}))
+vi.mock('ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('ai')>()
+  return {
+    ...actual,
+    generateText: vi.fn(),
+  }
+})
 
 import { generateText } from 'ai'
 import { send } from '../../src/session/send.js'
@@ -51,7 +56,7 @@ function makeTool(name: string, keywords?: () => string[]): DiscoverableTool {
   return {
     name,
     description: `Tool: ${name}`,
-    parameters: z.object({}),
+    inputSchema: zodSchema(z.object({})),
     ...(keywords ? { keywords } : {}),
   }
 }
@@ -60,8 +65,8 @@ function mockGenerateText(text: string) {
   mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
   vi.mocked(generateText).mockResolvedValue({
     text,
-    usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
-  } as Awaited<ReturnType<typeof generateText>>)
+    usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+  } as unknown as Awaited<ReturnType<typeof generateText>>)
 }
 
 beforeEach(() => {
@@ -119,7 +124,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const tool = makeTool('search', () => ['search'])
     const options: SessionOptions = { profile: 'main', tools: [tool] }
-    const messages: CoreMessage[] = [{ role: 'assistant', content: 'I can search for things' }]
+    const messages: ModelMessage[] = [{ role: 'assistant', content: 'I can search for things' }]
 
     await send(makeRunner(), options, messages, 'Find something')
 
@@ -132,7 +137,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const tool = makeTool('search', () => ['search'])
     const options: SessionOptions = { profile: 'main', tools: [tool] }
-    const messages: CoreMessage[] = [{ role: 'assistant', content: 'The weather is nice' }]
+    const messages: ModelMessage[] = [{ role: 'assistant', content: 'The weather is nice' }]
 
     await send(makeRunner(), options, messages, 'Hello')
 

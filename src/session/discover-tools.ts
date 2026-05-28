@@ -1,12 +1,11 @@
-import type { CoreMessage } from 'ai'
+import type { ModelMessage } from 'ai'
 import type { DiscoverableTool } from './types.js'
 
 export function discoverTools(
-  messages: CoreMessage[],
+  messages: ModelMessage[],
   tools: DiscoverableTool[],
 ): DiscoverableTool[] {
-  const assistantText = messages
-    .filter((m) => m.role === 'assistant')
+  const conversationText = messages
     .map((m) => (typeof m.content === 'string' ? m.content : ''))
     .join(' ')
 
@@ -21,6 +20,6 @@ export function discoverTools(
       return true
     }
 
-    return keywords.some((kw) => assistantText.includes(kw))
+    return keywords.some((kw) => conversationText.includes(kw))
   })
 }

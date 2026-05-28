@@ -52,11 +52,11 @@ function mockGenerateText(text: string, inputTokens = 10, outputTokens = 5) {
   vi.mocked(generateText).mockResolvedValue({
     text,
     usage: {
-      promptTokens: inputTokens,
-      completionTokens: outputTokens,
-      totalTokens: inputTokens + outputTokens,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      cachedInputTokens: inputTokens + outputTokens,
     },
-  } as Awaited<ReturnType<typeof generateText>>)
+  } as unknown as Awaited<ReturnType<typeof generateText>>)
 }
 
 beforeEach(() => {
@@ -73,7 +73,7 @@ describe('Runner integration', () => {
       prompt: (name) => `Say hello to ${name}`,
     })
 
-    const result = await runner.run(greet, 'hello')
+    const result = await runner.run(greet, ['hello'])
 
     expect(result.text).toBe('Hello, world!')
     expect(result.usage.inputTokens).toBe(8)

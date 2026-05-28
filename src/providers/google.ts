@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import type { Provider } from './provider.js'
+import type { Provider } from './types.js'
 
 export class GoogleProvider implements Provider {
   readonly #client: ReturnType<typeof createGoogleGenerativeAI>

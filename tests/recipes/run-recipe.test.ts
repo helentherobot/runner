@@ -62,8 +62,8 @@ describe('runRecipe()', () => {
     mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
     vi.mocked(generateText).mockResolvedValue({
       text: 'cats are great',
-      usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
-    } as Awaited<ReturnType<typeof generateText>>)
+      usage: { inputTokens: 10, outputTokens: 20, cachedInputTokens: 30 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
 
     await runRecipe(makeRunner(), r, ['cats', 3])
 
@@ -79,8 +79,8 @@ describe('runRecipe()', () => {
     mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
     vi.mocked(generateText).mockResolvedValue({
       text: 'world',
-      usage: { promptTokens: 5, completionTokens: 10, totalTokens: 15 },
-    } as Awaited<ReturnType<typeof generateText>>)
+      usage: { inputTokens: 5, outputTokens: 10, cachedInputTokens: 15 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
 
     const result = await runRecipe(makeRunner(), r, [])
 
@@ -96,8 +96,8 @@ describe('runRecipe()', () => {
     mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
     vi.mocked(generateText).mockResolvedValue({
       text: 'hi',
-      usage: { promptTokens: 42, completionTokens: 17, totalTokens: 59 },
-    } as Awaited<ReturnType<typeof generateText>>)
+      usage: { inputTokens: 42, outputTokens: 17, cachedInputTokens: 59 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
 
     const result = await runRecipe(makeRunner(), r, [])
 
@@ -114,8 +114,8 @@ describe('runRecipe()', () => {
     mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
     vi.mocked(generateText).mockResolvedValue({
       text: 'hi',
-      usage: { promptTokens: 1_000_000, completionTokens: 1_000_000, totalTokens: 2_000_000 },
-    } as Awaited<ReturnType<typeof generateText>>)
+      usage: { inputTokens: 1_000_000, outputTokens: 1_000_000, cachedInputTokens: 2_000_000 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
 
     const result = await runRecipe(makeRunner(), r, [])
 
@@ -133,8 +133,8 @@ describe('runRecipe()', () => {
     mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
     vi.mocked(generateText).mockResolvedValue({
       text: 'hi',
-      usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
-    } as Awaited<ReturnType<typeof generateText>>)
+      usage: { inputTokens: 100, outputTokens: 50, cachedInputTokens: 150 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
 
     const result = await runRecipe(makeRunner(profileNoCosts), r, [])
 
@@ -150,8 +150,8 @@ describe('runRecipe()', () => {
     mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
     vi.mocked(generateText).mockResolvedValue({
       text: 'hi',
-      usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
-    } as Awaited<ReturnType<typeof generateText>>)
+      usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+    } as unknown as Awaited<ReturnType<typeof generateText>>)
 
     await runRecipe(makeRunner(), r, [])
 

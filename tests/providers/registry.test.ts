@@ -3,37 +3,37 @@ import { ProviderRegistry } from '../../src/providers/registry.js'
 import type { RunnerConfig, ResolvedSecrets, ModelProfile } from '../../src/types.js'
 
 vi.mock('../../src/providers/open-router.js', () => ({
-  OpenRouterProvider: vi.fn().mockImplementation((apiKey: string) => ({
-    _apiKey: apiKey,
-    model: vi.fn().mockReturnValue({}),
-  })),
+  OpenRouterProvider: vi.fn(function (this: { _apiKey: string; model: unknown }, apiKey: string) {
+    this._apiKey = apiKey
+    this.model = vi.fn().mockReturnValue({})
+  }),
 }))
 
 vi.mock('../../src/providers/google.js', () => ({
-  GoogleProvider: vi.fn().mockImplementation((apiKey: string) => ({
-    _apiKey: apiKey,
-    model: vi.fn().mockReturnValue({}),
-  })),
+  GoogleProvider: vi.fn(function (this: { _apiKey: string; model: unknown }, apiKey: string) {
+    this._apiKey = apiKey
+    this.model = vi.fn().mockReturnValue({})
+  }),
 }))
 
 vi.mock('../../src/providers/openai.js', () => ({
-  OpenAIProvider: vi.fn().mockImplementation((apiKey: string) => ({
-    _apiKey: apiKey,
-    model: vi.fn().mockReturnValue({}),
-  })),
+  OpenAIProvider: vi.fn(function (this: { _apiKey: string; model: unknown }, apiKey: string) {
+    this._apiKey = apiKey
+    this.model = vi.fn().mockReturnValue({})
+  }),
 }))
 
 vi.mock('../../src/providers/anthropic.js', () => ({
-  AnthropicProvider: vi.fn().mockImplementation((apiKey: string) => ({
-    _apiKey: apiKey,
-    model: vi.fn().mockReturnValue({}),
-  })),
+  AnthropicProvider: vi.fn(function (this: { _apiKey: string; model: unknown }, apiKey: string) {
+    this._apiKey = apiKey
+    this.model = vi.fn().mockReturnValue({})
+  }),
 }))
 
 vi.mock('../../src/providers/ollama.js', () => ({
-  OllamaProvider: vi.fn().mockImplementation(() => ({
-    model: vi.fn().mockReturnValue({}),
-  })),
+  OllamaProvider: vi.fn(function (this: Record<string, unknown>) {
+    this.model = vi.fn().mockReturnValue({})
+  }),
 }))
 
 vi.mock('ai', () => ({

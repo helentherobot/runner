@@ -12,6 +12,7 @@ export async function runRecipe<TArgs extends unknown[]>(
   runner: RunnerInstance,
   r: Recipe<TArgs>,
   args: TArgs,
+  scope?: string,
 ): Promise<RunResult> {
   const profile = runner.config.profiles[r.profile]
 
@@ -25,12 +26,14 @@ export async function runRecipe<TArgs extends unknown[]>(
   const queue = runner.registry.getQueue(r.profile, profile)
 
   const prompt = r.prompt(...args)
-  const maxTokens = r.maxOutputTokens ?? profile.contextWindowTokens
+  const maxOutputTokens = r.maxOutputTokens ?? profile.contextWindowTokens
 
-  const result = await queue.enqueue(r.profile, () => generateText({ model, prompt, maxTokens }))
+  const result = await queue.enqueue(scope ?? r.profile, () =>
+    generateText({ model, prompt, maxOutputTokens }),
+  )
 
-  const inputTokens = result.usage.promptTokens
-  const outputTokens = result.usage.completionTokens
+  const inputTokens = result.usage.inputTokens ?? 0
+  const outputTokens = result.usage.outputTokens ?? 0
 
   const totalCostUsd = profile.costs
     ? (inputTokens / 1_000_000) * profile.costs.inputPer1M +

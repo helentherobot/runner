@@ -1,6 +1,6 @@
 import { generateText } from 'ai'
 import type { RunnerConfig, ResolvedSecrets, ModelProfile } from '../types.js'
-import type { Provider } from './provider.js'
+import type { Provider } from './types.js'
 import { ProviderQueue } from './queue.js'
 import { OpenRouterProvider } from './open-router.js'
 import { GoogleProvider } from './google.js'
@@ -57,7 +57,7 @@ export class ProviderRegistry {
       const model = provider.model(profile.model)
 
       warmupFn = async () => {
-        await generateText({ model, prompt: 'hi', maxTokens: 1 })
+        await generateText({ model, prompt: 'hi', maxOutputTokens: 1 })
       }
     }
 

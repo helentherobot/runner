@@ -16,7 +16,11 @@ export class Runner {
     return this.#registry
   }
 
-  async run<TArgs extends unknown[]>(r: Recipe<TArgs>, ...args: TArgs): Promise<RunResult> {
-    return runRecipe(this, r, args)
+  async run<TArgs extends unknown[]>(
+    r: Recipe<TArgs>,
+    args: TArgs,
+    scope?: string,
+  ): Promise<RunResult> {
+    return runRecipe(this, r, args, scope)
   }
 }
