@@ -1,12 +1,17 @@
 {
     "name": "@helentherobot/runner",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "module",
-    "main": "./src/index.js",
+    "main": "./dist/index.js",
     "exports": {
-        ".": "./src/index.js"
+        ".": "./dist/index.js"
     },
+    "files": [
+        "dist"
+    ],
     "scripts": {
+        "build": "tsc",
+        "prepublishOnly": "npm run build",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:smoke": "node --env-file .env node_modules/.bin/vitest run --config vitest.smoke.config.ts",
