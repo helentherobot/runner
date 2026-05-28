@@ -384,6 +384,7 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 - Phase 2 — Error classes + tests
 - Phase 3 — Timeout & retry in `send()` + tests
 - Phase 4 — Timeout & retry in `Runner.run()` + tests
+- Phase 5 — Version bump
 
 ### In Progress
 
@@ -395,7 +396,7 @@ This feature will add timeout enforcement, retry-with-rollback, external cancell
 
 ### To Do
 
-- Phase 5 — Version bump
+-
 
 ## Technical Notes
 
