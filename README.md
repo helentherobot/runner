@@ -1,8 +1,16 @@
 # Runner
 
+[![npm](https://img.shields.io/npm/v/@helentherobot/runner)](https://www.npmjs.com/package/@helentherobot/runner)
+
 A thin, opinionated wrapper around the [Vercel AI SDK](https://sdk.vercel.ai/) that handles model profiles, per-profile queue management, and multi-turn session execution.
 
 Runner has no opinion about working directories, databases, Telegram, users, or application-specific tooling. It is the base layer everything else builds on.
+
+## Installation
+
+```sh
+npm install @helentherobot/runner
+```
 
 ## Concepts
 
