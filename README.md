@@ -27,8 +27,8 @@ const runner = new Runner({
         warmup: false,
       },
       costs: {
-        inputPer1M: 0.10,
-        outputPer1M: 0.40,
+        inputPer1M: 0.1,
+        outputPer1M: 0.4,
       },
     },
   },
