@@ -1,4 +1,5 @@
 export interface RunOptions {
+  scope?: string
   abortSignal?: AbortSignal
 }
 

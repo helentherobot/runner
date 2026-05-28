@@ -65,11 +65,15 @@ console.log(result.text)
 console.log(result.usage) // { inputTokens, outputTokens, totalCostUsd }
 
 // Optional: pass a scope string for affinity-mode prioritisation
-const result2 = await runner.run(summarise, [articleText], 'session-abc')
+const result2 = await runner.run(summarise, [articleText], { scope: 'session-abc' })
 
 // Optional: pass an AbortSignal for external cancellation
 const controller = new AbortController()
-const result3 = await runner.run(summarise, [articleText], undefined, {
+const result3 = await runner.run(summarise, [articleText], { abortSignal: controller.signal })
+
+// Both together
+const result4 = await runner.run(summarise, [articleText], {
+  scope: 'session-abc',
   abortSignal: controller.signal,
 })
 ```

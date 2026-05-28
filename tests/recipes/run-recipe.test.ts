@@ -196,7 +196,7 @@ describe('runRecipe()', () => {
       usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
     } as unknown as Awaited<ReturnType<typeof generateText>>)
 
-    await runRecipe(makeRunner(), r, [], undefined, options)
+    await runRecipe(makeRunner(), r, [], options)
 
     const call = vi.mocked(generateText).mock.calls[0]?.[0]
     expect(call).toBeDefined()
@@ -246,8 +246,6 @@ describe('runRecipe()', () => {
     mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
     vi.mocked(generateText).mockRejectedValue(new Error('aborted'))
 
-    await expect(runRecipe(makeRunner(), r, [], undefined, options)).rejects.toThrow(
-      RequestCancelledError,
-    )
+    await expect(runRecipe(makeRunner(), r, [], options)).rejects.toThrow(RequestCancelledError)
   })
 })

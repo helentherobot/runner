@@ -13,7 +13,6 @@ export async function runRecipe<TArgs extends unknown[]>(
   runner: RunnerInstance,
   r: Recipe<TArgs>,
   args: TArgs,
-  scope?: string,
   options?: RunOptions,
 ): Promise<RunResult> {
   const profile = runner.config.profiles[r.profile]
@@ -38,7 +37,7 @@ export async function runRecipe<TArgs extends unknown[]>(
   const abortSignal = signals.length > 0 ? AbortSignal.any(signals) : undefined
 
   try {
-    const result = await queue.enqueue(scope ?? r.profile, () =>
+    const result = await queue.enqueue(options?.scope ?? r.profile, () =>
       generateText({
         model,
         prompt,

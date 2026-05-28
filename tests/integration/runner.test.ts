@@ -150,7 +150,7 @@ describe('Runner integration', () => {
     const controller = new AbortController()
     const options: RunOptions = { abortSignal: controller.signal }
 
-    await runner.run(greet, ['world'], undefined, options)
+    await runner.run(greet, ['world'], options)
 
     const call = vi.mocked(generateText).mock.calls[0]?.[0]
     expect(call).toBeDefined()
@@ -186,6 +186,6 @@ describe('Runner integration', () => {
 
     vi.mocked(generateText).mockRejectedValue(new Error('aborted'))
 
-    await expect(runner.run(greet, [], undefined, options)).rejects.toThrow(RequestCancelledError)
+    await expect(runner.run(greet, [], options)).rejects.toThrow(RequestCancelledError)
   })
 })

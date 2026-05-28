@@ -19,9 +19,8 @@ export class Runner {
   async run<TArgs extends unknown[]>(
     r: Recipe<TArgs>,
     args: TArgs,
-    scope?: string,
     options?: RunOptions,
   ): Promise<RunResult> {
-    return runRecipe(this, r, args, scope, options)
+    return runRecipe(this, r, args, options)
   }
 }
