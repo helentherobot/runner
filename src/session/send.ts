@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import type { ModelMessage, Tool, ToolSet } from 'ai'
+import type { ModelMessage, StepResult, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
 import { discoverTools } from './discover-tools.js'
@@ -67,7 +67,13 @@ export async function send(
           tools: toolSet,
           maxRetries: 0,
           abortSignal: mergedSignal,
-          onStepFinish: () => resetTimeout(),
+          prepareStep: options.prepareStep,
+          stopWhen: options.stopWhen,
+          providerOptions: profile.providerOptions,
+          onStepFinish: async (step: StepResult) => {
+            resetTimeout()
+            await options.onStepFinish?.(step)
+          },
         })
 
         if (timeoutId) clearTimeout(timeoutId)

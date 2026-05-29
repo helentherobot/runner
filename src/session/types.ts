@@ -1,4 +1,4 @@
-import type { Tool, ModelMessage } from 'ai'
+import type { Tool, ModelMessage, CoreMessage, StepResult, StopCondition } from 'ai'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DiscoverableTool = Tool<any, any> & {
@@ -12,6 +12,12 @@ export interface SessionOptions {
   tools?: DiscoverableTool[]
   scope?: string
   abortSignal?: AbortSignal
+  prepareStep?: (ctx: {
+    messages: CoreMessage[]
+    steps: StepResult[]
+  }) => Promise<{ messages?: CoreMessage[] } | void> | { messages?: CoreMessage[] } | void
+  onStepFinish?: (step: StepResult) => void | Promise<void>
+  stopWhen?: StopCondition | StopCondition[]
 }
 
 export interface SendResult {

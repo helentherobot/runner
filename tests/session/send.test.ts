@@ -235,6 +235,122 @@ describe('send()', () => {
     expect(generateTextCall.onStepFinish).toBeTypeOf('function')
   })
 
+  describe('prepareStep', () => {
+    it('is forwarded to generateText when provided', async () => {
+      mockGenerateText('response')
+      const prepareStep = vi.fn()
+      const options: SessionOptions = { profile: 'main', prepareStep }
+
+      await send(makeRunner(), options, [], 'Hello')
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.prepareStep).toBe(prepareStep)
+    })
+
+    it('is not passed when absent', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(), options, [], 'Hello')
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.prepareStep).toBeUndefined()
+    })
+  })
+
+  describe('stopWhen', () => {
+    it('is forwarded to generateText when provided', async () => {
+      mockGenerateText('response')
+      const stopWhen = vi.fn().mockReturnValue(false)
+      const options: SessionOptions = { profile: 'main', stopWhen }
+
+      await send(makeRunner(), options, [], 'Hello')
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBe(stopWhen)
+    })
+
+    it('is not passed when absent', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(), options, [], 'Hello')
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBeUndefined()
+    })
+  })
+
+  describe('providerOptions', () => {
+    it('is forwarded to generateText from the model profile', async () => {
+      const providerOptions = { anthropic: { cacheControl: true } }
+      const profile: ModelProfile = { ...baseProfile, providerOptions }
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(profile), options, [], 'Hello')
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.providerOptions).toBe(providerOptions)
+    })
+
+    it('is undefined when not set on the profile', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(), options, [], 'Hello')
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.providerOptions).toBeUndefined()
+    })
+  })
+
+  describe('onStepFinish composition', () => {
+    it('calls the external onStepFinish callback with the step result', async () => {
+      const externalCallback = vi.fn()
+      const fakeStep = { text: 'step', toolCalls: [], usage: {} }
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockImplementation(
+        async (opts: Parameters<typeof generateText>[0]) => {
+          const onStepFinish = (opts as { onStepFinish?: (step: unknown) => Promise<void> })
+            .onStepFinish
+          await onStepFinish?.(fakeStep)
+          return {
+            text: 'response',
+            usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          } as unknown as Awaited<ReturnType<typeof generateText>>
+        },
+      )
+
+      const options: SessionOptions = { profile: 'main', onStepFinish: externalCallback }
+      await send(makeRunner(), options, [], 'Hello')
+
+      expect(externalCallback).toHaveBeenCalledTimes(1)
+      expect(externalCallback).toHaveBeenCalledWith(fakeStep)
+    })
+
+    it('does not throw when no external onStepFinish is provided', async () => {
+      const fakeStep = { text: 'step', toolCalls: [], usage: {} }
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockImplementation(
+        async (opts: Parameters<typeof generateText>[0]) => {
+          const onStepFinish = (opts as { onStepFinish?: (step: unknown) => Promise<void> })
+            .onStepFinish
+          await onStepFinish?.(fakeStep)
+          return {
+            text: 'response',
+            usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          } as unknown as Awaited<ReturnType<typeof generateText>>
+        },
+      )
+
+      const options: SessionOptions = { profile: 'main' }
+      await expect(send(makeRunner(), options, [], 'Hello')).resolves.toBeDefined()
+    })
+  })
+
   describe('timeout & retry', () => {
     beforeEach(() => {
       vi.useFakeTimers()
