@@ -88,10 +88,14 @@ export async function send(
         const isTimeout =
           controller.signal.aborted && controller.signal.reason === 'request-timeout'
 
-        if (isTimeout && attempt < maxRetries) {
+        const reason = isTimeout ? 'timeout' : ((err as Error)?.name ?? 'error')
+        const willRetry = (isTimeout || options.isRetryable?.(err) === true) && attempt < maxRetries
+
+        if (willRetry) {
+          options.onRetry?.(attempt, maxRetries, reason)
           updatedMessages.length = 0
           updatedMessages.push(...snapshot)
-          await sleep(1000)
+          await sleep(options.backoffMs?.(attempt, reason) ?? 1000)
           continue
         }
 

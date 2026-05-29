@@ -18,6 +18,9 @@ export interface SessionOptions {
   }) => Promise<{ messages?: CoreMessage[] } | void> | { messages?: CoreMessage[] } | void
   onStepFinish?: (step: StepResult) => void | Promise<void>
   stopWhen?: StopCondition | StopCondition[]
+  isRetryable?: (error: unknown) => boolean
+  onRetry?: (attempt: number, maxAttempts: number, reason: string) => void
+  backoffMs?: (attempt: number, reason: string) => number
 }
 
 export interface SendResult {

@@ -343,6 +343,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 - Research and planning
 - Phase 1: Fix `maxOutputTokens` bug
 - Phase 2: AI SDK pass-throughs
+- Phase 3: Retry surface
 
 ### In Progress
 
@@ -350,7 +351,6 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 
 ### To Do
 
-- Phase 3: Retry surface
 - Phase 4: Signature change + `toolTimeoutMs` + lazy tools
 - Phase 5: Versioning & README
 

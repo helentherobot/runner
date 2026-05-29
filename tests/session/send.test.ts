@@ -439,6 +439,140 @@ describe('send()', () => {
       await rejection
     })
 
+    it('isRetryable returns false: non-timeout error is rethrown immediately, no retry', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxRetries: 3, requestTimeoutMs: 30_000 }
+      const nonTimeoutError = Object.assign(new Error('network failure'), { name: 'NetworkError' })
+
+      vi.mocked(generateText).mockRejectedValue(nonTimeoutError)
+
+      const isRetryable = vi.fn().mockReturnValue(false)
+      const resultPromise = send(makeRunner(profile), { profile: 'main', isRetryable }, [], 'Hello')
+
+      await expect(resultPromise).rejects.toThrow('network failure')
+      expect(vi.mocked(generateText)).toHaveBeenCalledTimes(1)
+      expect(isRetryable).toHaveBeenCalledWith(nonTimeoutError)
+    })
+
+    it('isRetryable returns true: non-timeout error is retried and onRetry fires', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxRetries: 2, requestTimeoutMs: 30_000 }
+      const nonTimeoutError = Object.assign(new Error('rate limit'), { name: 'RateLimitError' })
+
+      let callCount = 0
+      vi.mocked(generateText).mockImplementation(() => {
+        callCount++
+        if (callCount === 1) return Promise.reject(nonTimeoutError)
+        return Promise.resolve({
+          text: 'recovered',
+          usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+        } as unknown as Awaited<ReturnType<typeof generateText>>)
+      })
+
+      const isRetryable = vi.fn().mockReturnValue(true)
+      const onRetry = vi.fn()
+      const resultPromise = send(
+        makeRunner(profile),
+        { profile: 'main', isRetryable, onRetry, backoffMs: () => 0 },
+        [],
+        'Hello',
+      )
+
+      await vi.runAllTimersAsync()
+      const result = await resultPromise
+
+      expect(vi.mocked(generateText)).toHaveBeenCalledTimes(2)
+      expect(onRetry).toHaveBeenCalledTimes(1)
+      expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'recovered' })
+    })
+
+    it('onRetry receives correct attempt, maxAttempts, and reason', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxRetries: 2, requestTimeoutMs: 30_000 }
+      const nonTimeoutError = Object.assign(new Error('rate limit'), { name: 'RateLimitError' })
+
+      let callCount = 0
+      vi.mocked(generateText).mockImplementation(() => {
+        callCount++
+        if (callCount <= 2) return Promise.reject(nonTimeoutError)
+        return Promise.resolve({
+          text: 'ok',
+          usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+        } as unknown as Awaited<ReturnType<typeof generateText>>)
+      })
+
+      const onRetry = vi.fn()
+      const resultPromise = send(
+        makeRunner(profile),
+        { profile: 'main', isRetryable: () => true, onRetry, backoffMs: () => 0 },
+        [],
+        'Hello',
+      )
+
+      await vi.runAllTimersAsync()
+      await resultPromise
+
+      expect(onRetry).toHaveBeenCalledTimes(2)
+      expect(onRetry).toHaveBeenNthCalledWith(1, 0, 2, 'RateLimitError')
+      expect(onRetry).toHaveBeenNthCalledWith(2, 1, 2, 'RateLimitError')
+    })
+
+    it('backoffMs return value is used as the sleep duration', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxRetries: 1, requestTimeoutMs: 30_000 }
+      const nonTimeoutError = Object.assign(new Error('fail'), { name: 'CustomError' })
+
+      let callCount = 0
+      vi.mocked(generateText).mockImplementation(() => {
+        callCount++
+        if (callCount === 1) return Promise.reject(nonTimeoutError)
+        return Promise.resolve({
+          text: 'ok',
+          usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+        } as unknown as Awaited<ReturnType<typeof generateText>>)
+      })
+
+      const backoffMs = vi.fn().mockReturnValue(500)
+      const resultPromise = send(
+        makeRunner(profile),
+        { profile: 'main', isRetryable: () => true, backoffMs },
+        [],
+        'Hello',
+      )
+
+      await vi.advanceTimersByTimeAsync(500)
+      await resultPromise
+
+      expect(backoffMs).toHaveBeenCalledWith(0, 'CustomError')
+    })
+
+    it('falls back to 1000ms sleep when backoffMs is absent', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxRetries: 1, requestTimeoutMs: 30_000 }
+      const nonTimeoutError = Object.assign(new Error('fail'), { name: 'SomeError' })
+
+      let callCount = 0
+      vi.mocked(generateText).mockImplementation(() => {
+        callCount++
+        if (callCount === 1) return Promise.reject(nonTimeoutError)
+        return Promise.resolve({
+          text: 'ok',
+          usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+        } as unknown as Awaited<ReturnType<typeof generateText>>)
+      })
+
+      const resultPromise = send(
+        makeRunner(profile),
+        { profile: 'main', isRetryable: () => true },
+        [],
+        'Hello',
+      )
+
+      // Should not have resolved yet (waiting 1000ms)
+      await vi.advanceTimersByTimeAsync(999)
+      expect(vi.mocked(generateText)).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(1)
+      await resultPromise
+
+      expect(vi.mocked(generateText)).toHaveBeenCalledTimes(2)
+    })
+
     it('returns correct messages after one timeout retry', async () => {
       const profile: ModelProfile = { ...baseProfile, maxRetries: 2, requestTimeoutMs: 100 }
 
