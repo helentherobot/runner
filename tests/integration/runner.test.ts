@@ -88,7 +88,7 @@ describe('Runner integration', () => {
     const runner = new Runner(config)
     const options: SessionOptions = { profile: 'flash', systemPrompt: 'You are helpful.' }
 
-    const result = await send(runner, options, [], 'first message')
+    const result = await send(runner, options, ['first message'])
 
     expect(result.messages).toHaveLength(2)
     expect(result.messages[0]).toEqual({ role: 'user', content: 'first message' })
@@ -102,10 +102,10 @@ describe('Runner integration', () => {
     const runner = new Runner(config)
     const options: SessionOptions = { profile: 'flash', systemPrompt: 'You are helpful.' }
 
-    const first = await send(runner, options, [], 'first message')
+    const first = await send(runner, options, ['first message'])
 
     mockGenerateText('Second response')
-    const second = await send(runner, options, first.messages, 'second message')
+    const second = await send(runner, options, [...first.messages, 'second message'])
 
     expect(second.messages).toHaveLength(4)
     expect(second.messages[2]).toEqual({ role: 'user', content: 'second message' })
@@ -116,7 +116,7 @@ describe('Runner integration', () => {
     const runner = new Runner(config)
     const options: SessionOptions = { profile: 'nonexistent' }
 
-    await expect(send(runner, options, [], 'hello')).rejects.toThrow('Unknown profile: nonexistent')
+    await expect(send(runner, options, ['hello'])).rejects.toThrow('Unknown profile: nonexistent')
   })
 
   it('queue is shared across calls to the same profile', async () => {
@@ -125,10 +125,10 @@ describe('Runner integration', () => {
     const runner = new Runner(config)
     const options: SessionOptions = { profile: 'flash' }
 
-    const first = await send(runner, options, [], 'first')
+    const first = await send(runner, options, ['first'])
 
     mockGenerateText('response 2')
-    await send(runner, options, first.messages, 'second')
+    await send(runner, options, [...first.messages, 'second'])
 
     expect(vi.mocked(generateText)).toHaveBeenCalledTimes(2)
 

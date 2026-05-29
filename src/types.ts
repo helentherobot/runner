@@ -1,3 +1,5 @@
+import type { ProviderOptions } from '@ai-sdk/provider-utils'
+
 export interface QueueConfig {
   maxConcurrent: number
   requestsPerMinute: number
@@ -15,7 +17,7 @@ export interface ModelProfile {
     inputPer1M: number
     outputPer1M: number
   }
-  providerOptions?: Record<string, unknown>
+  providerOptions?: ProviderOptions
   maxRetries?: number
 }
 

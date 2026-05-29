@@ -7,3 +7,4 @@ export type { Recipe, RunResult, RunOptions } from './recipes/types.js'
 
 export { send } from './session/send.js'
 export type { SessionOptions, SendResult, DiscoverableTool } from './session/types.js'
+export type { StepResult, StopCondition } from 'ai'
