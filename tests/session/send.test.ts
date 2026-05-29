@@ -238,13 +238,17 @@ describe('send()', () => {
   describe('prepareStep', () => {
     it('is forwarded to generateText when provided', async () => {
       mockGenerateText('response')
-      const prepareStep = vi.fn()
+      const prepareStep = vi.fn().mockResolvedValue(undefined)
       const options: SessionOptions = { profile: 'main', prepareStep }
 
       await send(makeRunner(), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
-      expect(call.prepareStep).toBe(prepareStep)
+      // prepareStep is wrapped to normalise void returns; verify the wrapper delegates to the original
+      expect(call.prepareStep).toBeTypeOf('function')
+      const ctx = { messages: [], steps: [], model: {} as never, usage: {} as never }
+      await call.prepareStep!(ctx as never)
+      expect(prepareStep).toHaveBeenCalledWith(ctx)
     })
 
     it('is not passed when absent', async () => {

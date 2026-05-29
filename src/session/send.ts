@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import type { CoreMessage, StepResult, Tool, ToolSet } from 'ai'
+import type { ModelMessage, StepResult, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
 import { discoverTools } from './discover-tools.js'
@@ -10,7 +10,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 export async function send(
   runner: RunnerInstance,
   options: SessionOptions,
-  messages: (CoreMessage | string)[],
+  messages: (ModelMessage | string)[],
 ): Promise<SendResult> {
   const profile = runner.config.profiles[options.profile]
 
@@ -36,7 +36,7 @@ export async function send(
         )
       : undefined
 
-  const updatedMessages: CoreMessage[] = messages.map((m) =>
+  const updatedMessages: ModelMessage[] = messages.map((m) =>
     typeof m === 'string' ? { role: 'user', content: m } : m,
   )
   const snapshot = [...updatedMessages]
@@ -70,10 +70,12 @@ export async function send(
           tools: toolSet,
           maxRetries: 0,
           abortSignal: mergedSignal,
-          prepareStep: options.prepareStep,
+          prepareStep: options.prepareStep
+            ? async (ctx) => (await options.prepareStep!(ctx)) ?? {}
+            : undefined,
           stopWhen: options.stopWhen,
           providerOptions: profile.providerOptions,
-          onStepFinish: async (step: StepResult) => {
+          onStepFinish: async (step: StepResult<ToolSet>) => {
             const timeoutMs =
               step.toolCalls.length > 0 && options.toolTimeoutMs != null
                 ? options.toolTimeoutMs

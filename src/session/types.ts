@@ -1,4 +1,4 @@
-import type { Tool, CoreMessage, StepResult, StopCondition } from 'ai'
+import type { Tool, ModelMessage, StepResult, StopCondition, ToolSet } from 'ai'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DiscoverableTool = Tool<any, any> & {
@@ -13,11 +13,11 @@ export interface SessionOptions {
   scope?: string
   abortSignal?: AbortSignal
   prepareStep?: (ctx: {
-    messages: CoreMessage[]
-    steps: StepResult[]
-  }) => Promise<{ messages?: CoreMessage[] } | void> | { messages?: CoreMessage[] } | void
-  onStepFinish?: (step: StepResult) => void | Promise<void>
-  stopWhen?: StopCondition | StopCondition[]
+    messages: ModelMessage[]
+    steps: StepResult<ToolSet>[]
+  }) => Promise<{ messages?: ModelMessage[] } | void> | { messages?: ModelMessage[] } | void
+  onStepFinish?: (step: StepResult<ToolSet>) => void | Promise<void>
+  stopWhen?: StopCondition<ToolSet> | StopCondition<ToolSet>[]
   isRetryable?: (error: unknown) => boolean
   onRetry?: (attempt: number, maxAttempts: number, reason: string) => void
   backoffMs?: (attempt: number, reason: string) => number
@@ -25,7 +25,7 @@ export interface SessionOptions {
 }
 
 export interface SendResult {
-  messages: CoreMessage[]
+  messages: ModelMessage[]
   usage: {
     inputTokens: number
     outputTokens: number
