@@ -215,6 +215,16 @@ describe('send()', () => {
     expect(generateTextCall.maxRetries).toBe(0)
   })
 
+  it('does not pass maxOutputTokens to generateText', async () => {
+    mockGenerateText('response')
+    const options: SessionOptions = { profile: 'main' }
+
+    await send(makeRunner(), options, [], 'Hello')
+
+    const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
+    expect(generateTextCall).not.toHaveProperty('maxOutputTokens')
+  })
+
   it('passes onStepFinish to generateText', async () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main' }

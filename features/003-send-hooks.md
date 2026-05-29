@@ -143,6 +143,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 2. **Runtime** (`src/session/send.ts`) — refactor the catch block:
 
    Current flow:
+
    ```
    if user aborted → throw RequestCancelledError
    if timeout && attempts remain → rollback, sleep(1000), continue
@@ -151,6 +152,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
    ```
 
    New flow:
+
    ```
    if user aborted → throw RequestCancelledError
 
@@ -193,6 +195,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 1. **Signature change** (`src/session/send.ts`):
 
    Change:
+
    ```ts
    export async function send(
      runner: RunnerInstance,
@@ -203,6 +206,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
    ```
 
    To:
+
    ```ts
    export async function send(
      runner: RunnerInstance,
@@ -212,14 +216,16 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
    ```
 
    Inside the function, replace:
+
    ```ts
    const updatedMessages: ModelMessage[] = [...messages, { role: 'user', content: message }]
    ```
 
    With:
+
    ```ts
    const updatedMessages: CoreMessage[] = messages.map((m) =>
-     typeof m === 'string' ? { role: 'user', content: m } : m
+     typeof m === 'string' ? { role: 'user', content: m } : m,
    )
    ```
 
@@ -228,6 +234,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
    Remove the `ModelMessage` import if it is no longer used; confirm `CoreMessage` is imported from `'ai'`.
 
 2. **`toolTimeoutMs`** (`src/session/types.ts`): Add:
+
    ```ts
    toolTimeoutMs?: number
    ```
@@ -245,11 +252,13 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
    Update `resetTimeout()` to accept an optional `ms` argument that overrides `profile.requestTimeoutMs`. When no argument is passed it uses `profile.requestTimeoutMs` (existing behaviour).
 
 3. **Lazy `tools`** (`src/session/types.ts`): Change the `tools` field:
+
    ```ts
    tools?: DiscoverableTool[] | (() => DiscoverableTool[])
    ```
 
    In `src/session/send.ts`, before the retry loop where `discoverTools` is called, normalise the tools value:
+
    ```ts
    const toolsArray = typeof options.tools === 'function' ? options.tools() : (options.tools ?? [])
    const activeTools = discoverTools(updatedMessages, toolsArray)
@@ -287,6 +296,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
    a. **Breaking change callout** at the top of the section:
    - State that `0.3.0` removes the fourth `message: string` parameter.
    - Show the before/after migration pattern:
+
      ```ts
      // before (0.2.x)
      send(runner, options, history, 'new user message')
@@ -331,6 +341,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 ### Completed
 
 - Research and planning
+- Phase 1: Fix `maxOutputTokens` bug
 
 ### In Progress
 
@@ -338,7 +349,6 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 
 ### To Do
 
-- Phase 1: Fix `maxOutputTokens` bug
 - Phase 2: AI SDK pass-throughs
 - Phase 3: Retry surface
 - Phase 4: Signature change + `toolTimeoutMs` + lazy tools
@@ -349,7 +359,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 - `onStepFinish` is **always** a composed function — the internal `resetTimeout()` must fire even when no external `onStepFinish` is provided. The wrapper is unconditional; the external callback is optional.
 - `isRetryable` is only called for non-timeout errors. A timeout always retries if attempts remain.
 - The lazy tools closure is called once before the retry loop, not once per attempt. This means the tool list is stable across retries of the same `send()` call.
-- `toolTimeoutMs` is detected by checking `step.toolCalls.length > 0` on the completed step result. The timer is reset *during* `onStepFinish` — i.e., at the end of a step, before the next one begins.
+- `toolTimeoutMs` is detected by checking `step.toolCalls.length > 0` on the completed step result. The timer is reset _during_ `onStepFinish` — i.e., at the end of a step, before the next one begins.
 - `CoreMessage` (from the AI SDK) is the correct message type for the new signature. `ModelMessage` (from `@ai-sdk/provider-utils`) was the old type. Both are structurally compatible for the `role`/`content` shape, but `CoreMessage` is the richer union type used directly by `generateText`.
 - `maxOutputTokens` fix: simply removing the line is correct. `generateText` has its own per-model defaults and there is no `maxOutputTokens` on `ModelProfile` or `SessionOptions` yet. If a caller ever needs to cap output tokens, a new optional field can be added at that time.
 

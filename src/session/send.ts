@@ -65,7 +65,6 @@ export async function send(
           system: options.systemPrompt,
           messages: updatedMessages,
           tools: toolSet,
-          maxOutputTokens: profile.contextWindowTokens,
           maxRetries: 0,
           abortSignal: mergedSignal,
           onStepFinish: () => resetTimeout(),
