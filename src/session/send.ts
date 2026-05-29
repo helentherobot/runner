@@ -23,18 +23,15 @@ export async function send(
   const model = provider.model(profile.model)
   const queue = runner.registry.getQueue(options.profile, profile)
 
-  const toolsArray = typeof options.tools === 'function' ? options.tools() : (options.tools ?? [])
-  const activeTools = discoverTools(
-    messages.map((m) => (typeof m === 'string' ? { role: 'user', content: m } : m)),
-    toolsArray,
-  )
-
-  const toolSet: ToolSet | undefined =
-    activeTools.length > 0
+  const buildToolSet = (msgs: ModelMessage[]): ToolSet | undefined => {
+    const toolsArray = typeof options.tools === 'function' ? options.tools() : (options.tools ?? [])
+    const activeTools = discoverTools(msgs, toolsArray)
+    return activeTools.length > 0
       ? Object.fromEntries(
           activeTools.map(({ name, keywords: _keywords, ...rest }) => [name, rest as Tool]),
         )
       : undefined
+  }
 
   const updatedMessages: ModelMessage[] = messages.map((m) =>
     typeof m === 'string' ? { role: 'user', content: m } : m,
@@ -67,12 +64,14 @@ export async function send(
           model,
           system: options.systemPrompt,
           messages: updatedMessages,
-          tools: toolSet,
+          tools: buildToolSet(updatedMessages),
           maxRetries: 0,
           abortSignal: mergedSignal,
-          prepareStep: options.prepareStep
-            ? async (ctx) => (await options.prepareStep!(ctx)) ?? {}
-            : undefined,
+          prepareStep: async (ctx) => {
+            const base = options.prepareStep ? ((await options.prepareStep!(ctx)) ?? {}) : {}
+            if (typeof options.tools !== 'function') return base
+            return { ...base, tools: buildToolSet(ctx.messages as ModelMessage[]) }
+          },
           stopWhen: options.stopWhen,
           providerOptions: profile.providerOptions,
           onStepFinish: async (step: StepResult<ToolSet>) => {

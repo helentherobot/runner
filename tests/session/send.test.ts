@@ -251,14 +251,14 @@ describe('send()', () => {
       expect(prepareStep).toHaveBeenCalledWith(ctx)
     })
 
-    it('is not passed when absent', async () => {
+    it('is always passed to support per-step tool re-evaluation', async () => {
       mockGenerateText('response')
       const options: SessionOptions = { profile: 'main' }
 
       await send(makeRunner(), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
-      expect(call.prepareStep).toBeUndefined()
+      expect(call.prepareStep).toBeTypeOf('function')
     })
   })
 
@@ -703,7 +703,7 @@ describe('send()', () => {
       expect(Object.keys(call.tools!)).toContain('lazy-tool')
     })
 
-    it('calls the closure exactly once per send() invocation', async () => {
+    it('calls the closure once for the initial tools parameter when prepareStep is not invoked', async () => {
       mockGenerateText('response')
       const tool = makeTool('once-tool')
       const toolsClosure = vi.fn().mockReturnValue([tool])
@@ -712,6 +712,116 @@ describe('send()', () => {
       await send(makeRunner(), options, ['Hello'])
 
       expect(toolsClosure).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('per-step tool re-evaluation', () => {
+    // This block tests the core fix for the bug where tools was evaluated once before the
+    // retry loop in send(), so a mid-turn restrictTools() call had no effect on subsequent
+    // steps within the same generateText invocation.
+
+    function mockGenerateTextWithPrepareStep(captureRef: { stepConfig: unknown }) {
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockImplementation(
+        async (opts: Parameters<typeof generateText>[0]) => {
+          const prepareStep = (opts as { prepareStep?: (ctx: unknown) => Promise<unknown> })
+            .prepareStep
+          const ctx = {
+            messages: [{ role: 'user', content: 'Hello' }],
+            steps: [],
+            model: {} as never,
+            usage: {} as never,
+          }
+          captureRef.stepConfig = await prepareStep?.(ctx as never)
+          return {
+            text: 'response',
+            usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          } as unknown as Awaited<ReturnType<typeof generateText>>
+        },
+      )
+    }
+
+    it('re-evaluates a tools closure in prepareStep so mid-turn restrictTools() takes effect', async () => {
+      const toolA = makeTool('tool-a')
+      const toolB = makeTool('tool-b')
+
+      // Simulate restrictTools() being called mid-turn: first call returns both tools,
+      // subsequent calls return only toolA (as if toolB was restricted away).
+      let restricted = false
+      const toolsClosure = vi.fn().mockImplementation(() => (restricted ? [toolA] : [toolA, toolB]))
+
+      const capture: { stepConfig: unknown } = { stepConfig: undefined }
+      mockGenerateTextWithPrepareStep(capture)
+
+      const options: SessionOptions = { profile: 'main', tools: toolsClosure }
+      await send(makeRunner(), options, ['Hello'])
+
+      // Initial tools call gave both tools
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(Object.keys(call.tools!)).toContain('tool-a')
+      expect(Object.keys(call.tools!)).toContain('tool-b')
+
+      // Now simulate what restrictTools() would do mid-turn, then fire prepareStep
+      restricted = true
+      const ctx = {
+        messages: [{ role: 'user', content: 'Hello' }],
+        steps: [],
+        model: {} as never,
+        usage: {} as never,
+      }
+      const stepConfig = (await (
+        call as { prepareStep?: (ctx: unknown) => Promise<unknown> }
+      ).prepareStep?.(ctx)) as { tools?: Record<string, unknown> }
+
+      // prepareStep re-evaluated the closure — tool-b is gone
+      expect(stepConfig?.tools).toBeDefined()
+      expect(Object.keys(stepConfig!.tools!)).toContain('tool-a')
+      expect(Object.keys(stepConfig!.tools!)).not.toContain('tool-b')
+    })
+
+    it('OLD BEHAVIOUR PROOF: static toolSet built once would keep tool-b even after restriction', async () => {
+      // This test documents why the old code was broken. If you build the toolSet once before
+      // the loop and pass it statically, the restricted set never reaches the model.
+      const toolA = makeTool('tool-a')
+      const toolB = makeTool('tool-b')
+
+      let restricted = false
+      const toolsClosure = vi.fn().mockImplementation(() => (restricted ? [toolA] : [toolA, toolB]))
+
+      // Replicate the old broken pattern: evaluate the closure once, build toolSet statically
+      const initialTools = toolsClosure()
+      const staticToolSet = Object.fromEntries(
+        initialTools.map(({ name, keywords: _kw, ...rest }) => [name, rest]),
+      )
+
+      // At this point restricted becomes true (restrictTools() was called mid-turn)
+      restricted = true
+
+      // The static toolSet still contains tool-b — this was the bug
+      expect(Object.keys(staticToolSet)).toContain('tool-b')
+
+      // But re-evaluating the closure (what the fix does) gives only tool-a
+      const freshTools = toolsClosure()
+      const freshToolSet = Object.fromEntries(
+        freshTools.map(({ name, keywords: _kw, ...rest }) => [name, rest]),
+      )
+      expect(Object.keys(freshToolSet)).not.toContain('tool-b')
+      expect(Object.keys(freshToolSet)).toContain('tool-a')
+    })
+
+    it('does not inject tools into prepareStep result when tools is a static array', async () => {
+      const toolA = makeTool('tool-a')
+      const toolB = makeTool('tool-b')
+
+      const capture: { stepConfig: unknown } = { stepConfig: undefined }
+      mockGenerateTextWithPrepareStep(capture)
+
+      const options: SessionOptions = { profile: 'main', tools: [toolA, toolB] }
+      await send(makeRunner(), options, ['Hello'])
+
+      // Static array: prepareStep returns no tools override — AI SDK keeps the initial toolSet
+      const stepConfig = capture.stepConfig as { tools?: unknown }
+      expect(stepConfig?.tools).toBeUndefined()
     })
   })
 })
