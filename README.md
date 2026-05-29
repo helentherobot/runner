@@ -267,12 +267,12 @@ const options: SessionOptions = {
 }
 ```
 
-`tools` also accepts a closure, which is evaluated once per `send()` call. This is useful when the available tool set depends on state that may change between calls:
+`tools` also accepts a closure, which is re-evaluated before each model step. This is useful when the available tool set may change mid-turn — for example, when a tool fires and narrows the active set for subsequent steps:
 
 ```ts
 const options: SessionOptions = {
   profile: 'flash',
-  tools: () => loadToolsForCurrentUser(), // called once per send() invocation
+  tools: () => getCurrentTools(), // re-evaluated before each model step
 }
 ```
 
