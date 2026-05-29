@@ -1,8 +1,8 @@
-import type { ModelMessage } from 'ai'
+import type { CoreMessage } from 'ai'
 import type { DiscoverableTool } from './types.js'
 
 export function discoverTools(
-  messages: ModelMessage[],
+  messages: CoreMessage[],
   tools: DiscoverableTool[],
 ): DiscoverableTool[] {
   const conversationText = messages

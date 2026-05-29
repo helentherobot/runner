@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, expectTypeOf } from 'vitest'
 import { zodSchema } from 'ai'
-import type { ModelMessage } from 'ai'
+import type { CoreMessage } from 'ai'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
 import type { ModelProfile } from '../../src/types.js'
 import type { DiscoverableTool, SessionOptions } from '../../src/session/types.js'
@@ -92,7 +92,7 @@ describe('send()', () => {
     mockGenerateText('Hello back')
     const options: SessionOptions = { profile: 'main' }
 
-    const result = await send(makeRunner(), options, [], 'Hello')
+    const result = await send(makeRunner(), options, ['Hello'])
 
     expect(result.messages).toHaveLength(2)
     expect(result.messages[0]).toEqual({ role: 'user', content: 'Hello' })
@@ -103,10 +103,10 @@ describe('send()', () => {
     mockGenerateText('First response')
     const options: SessionOptions = { profile: 'main' }
 
-    const first = await send(makeRunner(), options, [], 'First message')
+    const first = await send(makeRunner(), options, ['First message'])
 
     mockGenerateText('Second response')
-    const second = await send(makeRunner(), options, first.messages, 'Second message')
+    const second = await send(makeRunner(), options, [...first.messages, 'Second message'])
 
     expect(second.messages).toHaveLength(4)
   })
@@ -115,7 +115,7 @@ describe('send()', () => {
     mockGenerateText('I am the assistant')
     const options: SessionOptions = { profile: 'main' }
 
-    const result = await send(makeRunner(), options, [], 'Hi')
+    const result = await send(makeRunner(), options, ['Hi'])
 
     expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'I am the assistant' })
   })
@@ -125,7 +125,7 @@ describe('send()', () => {
     const tool = makeTool('always')
     const options: SessionOptions = { profile: 'main', tools: [tool] }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.tools).toBeDefined()
@@ -136,9 +136,9 @@ describe('send()', () => {
     mockGenerateText('response')
     const tool = makeTool('search', () => ['search'])
     const options: SessionOptions = { profile: 'main', tools: [tool] }
-    const messages: ModelMessage[] = [{ role: 'assistant', content: 'I can search for things' }]
+    const messages: CoreMessage[] = [{ role: 'assistant', content: 'I can search for things' }]
 
-    await send(makeRunner(), options, messages, 'Find something')
+    await send(makeRunner(), options, [...messages, 'Find something'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.tools).toBeDefined()
@@ -149,9 +149,9 @@ describe('send()', () => {
     mockGenerateText('response')
     const tool = makeTool('search', () => ['search'])
     const options: SessionOptions = { profile: 'main', tools: [tool] }
-    const messages: ModelMessage[] = [{ role: 'assistant', content: 'The weather is nice' }]
+    const messages: CoreMessage[] = [{ role: 'assistant', content: 'The weather is nice' }]
 
-    await send(makeRunner(), options, messages, 'Hello')
+    await send(makeRunner(), options, [...messages, 'Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.tools).toBeUndefined()
@@ -161,7 +161,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main', systemPrompt: 'You are helpful.' }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.system).toBe('You are helpful.')
@@ -171,7 +171,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main' }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     expect(mockEnqueue).toHaveBeenCalledWith('main', expect.any(Function))
   })
@@ -179,7 +179,7 @@ describe('send()', () => {
   it('throws when the profile key is not found in config', async () => {
     const options: SessionOptions = { profile: 'nonexistent' }
 
-    await expect(send(makeRunner(), options, [], 'Hello')).rejects.toThrow(
+    await expect(send(makeRunner(), options, ['Hello'])).rejects.toThrow(
       'Unknown profile: nonexistent',
     )
   })
@@ -189,7 +189,7 @@ describe('send()', () => {
     const controller = new AbortController()
     const options: SessionOptions = { profile: 'main', abortSignal: controller.signal }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.abortSignal).toBeDefined()
@@ -199,7 +199,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main' }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.abortSignal).toBeDefined()
@@ -209,7 +209,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main' }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.maxRetries).toBe(0)
@@ -219,7 +219,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main' }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall).not.toHaveProperty('maxOutputTokens')
@@ -229,7 +229,7 @@ describe('send()', () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main' }
 
-    await send(makeRunner(), options, [], 'Hello')
+    await send(makeRunner(), options, ['Hello'])
 
     const generateTextCall = vi.mocked(generateText).mock.calls[0][0]
     expect(generateTextCall.onStepFinish).toBeTypeOf('function')
@@ -241,7 +241,7 @@ describe('send()', () => {
       const prepareStep = vi.fn()
       const options: SessionOptions = { profile: 'main', prepareStep }
 
-      await send(makeRunner(), options, [], 'Hello')
+      await send(makeRunner(), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.prepareStep).toBe(prepareStep)
@@ -251,7 +251,7 @@ describe('send()', () => {
       mockGenerateText('response')
       const options: SessionOptions = { profile: 'main' }
 
-      await send(makeRunner(), options, [], 'Hello')
+      await send(makeRunner(), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.prepareStep).toBeUndefined()
@@ -264,7 +264,7 @@ describe('send()', () => {
       const stopWhen = vi.fn().mockReturnValue(false)
       const options: SessionOptions = { profile: 'main', stopWhen }
 
-      await send(makeRunner(), options, [], 'Hello')
+      await send(makeRunner(), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.stopWhen).toBe(stopWhen)
@@ -274,7 +274,7 @@ describe('send()', () => {
       mockGenerateText('response')
       const options: SessionOptions = { profile: 'main' }
 
-      await send(makeRunner(), options, [], 'Hello')
+      await send(makeRunner(), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.stopWhen).toBeUndefined()
@@ -288,7 +288,7 @@ describe('send()', () => {
       mockGenerateText('response')
       const options: SessionOptions = { profile: 'main' }
 
-      await send(makeRunner(profile), options, [], 'Hello')
+      await send(makeRunner(profile), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.providerOptions).toBe(providerOptions)
@@ -298,7 +298,7 @@ describe('send()', () => {
       mockGenerateText('response')
       const options: SessionOptions = { profile: 'main' }
 
-      await send(makeRunner(), options, [], 'Hello')
+      await send(makeRunner(), options, ['Hello'])
 
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.providerOptions).toBeUndefined()
@@ -324,7 +324,7 @@ describe('send()', () => {
       )
 
       const options: SessionOptions = { profile: 'main', onStepFinish: externalCallback }
-      await send(makeRunner(), options, [], 'Hello')
+      await send(makeRunner(), options, ['Hello'])
 
       expect(externalCallback).toHaveBeenCalledTimes(1)
       expect(externalCallback).toHaveBeenCalledWith(fakeStep)
@@ -347,7 +347,7 @@ describe('send()', () => {
       )
 
       const options: SessionOptions = { profile: 'main' }
-      await expect(send(makeRunner(), options, [], 'Hello')).resolves.toBeDefined()
+      await expect(send(makeRunner(), options, ['Hello'])).resolves.toBeDefined()
     })
   })
 
@@ -381,7 +381,7 @@ describe('send()', () => {
       const profile: ModelProfile = { ...baseProfile, maxRetries: 2, requestTimeoutMs: 100 }
       mockGenerateTextWithTimeout()
 
-      const resultPromise = send(makeRunner(profile), { profile: 'main' }, [], 'Hello')
+      const resultPromise = send(makeRunner(profile), { profile: 'main' }, ['Hello'])
       const rejection = expect(resultPromise).rejects.toBeInstanceOf(RequestTimeoutError)
 
       // Each attempt: advance past timeout, then past sleep(1000) for retries
@@ -401,7 +401,7 @@ describe('send()', () => {
       const profile: ModelProfile = { ...baseProfile, maxRetries: 1, requestTimeoutMs: 100 }
       mockGenerateTextWithTimeout()
 
-      const resultPromise = send(makeRunner(profile), { profile: 'main' }, [], 'Hello')
+      const resultPromise = send(makeRunner(profile), { profile: 'main' }, ['Hello'])
       const rejection = expect(resultPromise).rejects.toBeInstanceOf(RequestTimeoutError)
 
       await vi.advanceTimersByTimeAsync(100)
@@ -428,8 +428,7 @@ describe('send()', () => {
       const resultPromise = send(
         makeRunner(profile),
         { profile: 'main', abortSignal: callerController.signal },
-        [],
-        'Hello',
+        ['Hello'],
       )
       const rejection = expect(resultPromise).rejects.toBeInstanceOf(RequestCancelledError)
 
@@ -446,7 +445,7 @@ describe('send()', () => {
       vi.mocked(generateText).mockRejectedValue(nonTimeoutError)
 
       const isRetryable = vi.fn().mockReturnValue(false)
-      const resultPromise = send(makeRunner(profile), { profile: 'main', isRetryable }, [], 'Hello')
+      const resultPromise = send(makeRunner(profile), { profile: 'main', isRetryable }, ['Hello'])
 
       await expect(resultPromise).rejects.toThrow('network failure')
       expect(vi.mocked(generateText)).toHaveBeenCalledTimes(1)
@@ -472,8 +471,7 @@ describe('send()', () => {
       const resultPromise = send(
         makeRunner(profile),
         { profile: 'main', isRetryable, onRetry, backoffMs: () => 0 },
-        [],
-        'Hello',
+        ['Hello'],
       )
 
       await vi.runAllTimersAsync()
@@ -502,8 +500,7 @@ describe('send()', () => {
       const resultPromise = send(
         makeRunner(profile),
         { profile: 'main', isRetryable: () => true, onRetry, backoffMs: () => 0 },
-        [],
-        'Hello',
+        ['Hello'],
       )
 
       await vi.runAllTimersAsync()
@@ -532,8 +529,7 @@ describe('send()', () => {
       const resultPromise = send(
         makeRunner(profile),
         { profile: 'main', isRetryable: () => true, backoffMs },
-        [],
-        'Hello',
+        ['Hello'],
       )
 
       await vi.advanceTimersByTimeAsync(500)
@@ -559,8 +555,7 @@ describe('send()', () => {
       const resultPromise = send(
         makeRunner(profile),
         { profile: 'main', isRetryable: () => true },
-        [],
-        'Hello',
+        ['Hello'],
       )
 
       // Should not have resolved yet (waiting 1000ms)
@@ -595,7 +590,7 @@ describe('send()', () => {
           }),
       )
 
-      const promise = send(makeRunner(profile), { profile: 'main' }, [], 'Hello')
+      const promise = send(makeRunner(profile), { profile: 'main' }, ['Hello'])
 
       await vi.advanceTimersByTimeAsync(100) // trigger first timeout
       await vi.advanceTimersByTimeAsync(1000) // sleep before retry
@@ -605,6 +600,114 @@ describe('send()', () => {
       expect(result.messages).toHaveLength(2)
       expect(result.messages[0]).toEqual({ role: 'user', content: 'Hello' })
       expect(result.messages[1]).toEqual({ role: 'assistant', content: 'success after retry' })
+    })
+  })
+
+  describe('signature — string coercion', () => {
+    it('coerces a plain string to { role: "user", content: string }', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(), options, ['Hello world'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.messages).toContainEqual({ role: 'user', content: 'Hello world' })
+    })
+
+    it('passes a CoreMessage object through unchanged', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+      const msg: CoreMessage = { role: 'user', content: 'already a message' }
+
+      await send(makeRunner(), options, [msg])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.messages).toContainEqual({ role: 'user', content: 'already a message' })
+    })
+  })
+
+  describe('toolTimeoutMs', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('resets with toolTimeoutMs when step has tool calls', async () => {
+      const profile: ModelProfile = { ...baseProfile, requestTimeoutMs: 1000 }
+      const fakeStep = { text: '', toolCalls: [{ toolName: 'myTool' }], usage: {} }
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockImplementation(
+        async (opts: Parameters<typeof generateText>[0]) => {
+          const onStepFinish = (opts as { onStepFinish?: (step: unknown) => Promise<void> })
+            .onStepFinish
+          await onStepFinish?.(fakeStep)
+          return {
+            text: 'done',
+            usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          } as unknown as Awaited<ReturnType<typeof generateText>>
+        },
+      )
+
+      const options: SessionOptions = { profile: 'main', toolTimeoutMs: 60_000 }
+      const result = await send(makeRunner(profile), options, ['Hello'])
+
+      // If toolTimeoutMs was used, the longer timeout means we should not have timed out
+      expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'done' })
+    })
+
+    it('uses requestTimeoutMs when step has no tool calls', async () => {
+      const profile: ModelProfile = { ...baseProfile, requestTimeoutMs: 5000 }
+      const fakeStep = { text: '', toolCalls: [], usage: {} }
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockImplementation(
+        async (opts: Parameters<typeof generateText>[0]) => {
+          const onStepFinish = (opts as { onStepFinish?: (step: unknown) => Promise<void> })
+            .onStepFinish
+          await onStepFinish?.(fakeStep)
+          return {
+            text: 'done',
+            usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          } as unknown as Awaited<ReturnType<typeof generateText>>
+        },
+      )
+
+      const options: SessionOptions = { profile: 'main', toolTimeoutMs: 60_000 }
+      const result = await send(makeRunner(profile), options, ['Hello'])
+
+      expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'done' })
+    })
+  })
+
+  describe('lazy tools', () => {
+    it('calls the closure and uses the returned tools', async () => {
+      mockGenerateText('response')
+      const tool = makeTool('lazy-tool')
+      const toolsClosure = vi.fn().mockReturnValue([tool])
+      const options: SessionOptions = { profile: 'main', tools: toolsClosure }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      expect(toolsClosure).toHaveBeenCalledTimes(1)
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.tools).toBeDefined()
+      expect(Object.keys(call.tools!)).toContain('lazy-tool')
+    })
+
+    it('calls the closure exactly once per send() invocation', async () => {
+      mockGenerateText('response')
+      const tool = makeTool('once-tool')
+      const toolsClosure = vi.fn().mockReturnValue([tool])
+      const options: SessionOptions = { profile: 'main', tools: toolsClosure }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      expect(toolsClosure).toHaveBeenCalledTimes(1)
     })
   })
 })

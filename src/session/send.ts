@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import type { ModelMessage, StepResult, Tool, ToolSet } from 'ai'
+import type { CoreMessage, StepResult, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
 import { discoverTools } from './discover-tools.js'
@@ -10,8 +10,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 export async function send(
   runner: RunnerInstance,
   options: SessionOptions,
-  messages: ModelMessage[],
-  message: string,
+  messages: (CoreMessage | string)[],
 ): Promise<SendResult> {
   const profile = runner.config.profiles[options.profile]
 
@@ -24,7 +23,11 @@ export async function send(
   const model = provider.model(profile.model)
   const queue = runner.registry.getQueue(options.profile, profile)
 
-  const activeTools = discoverTools(messages, options.tools ?? [])
+  const toolsArray = typeof options.tools === 'function' ? options.tools() : (options.tools ?? [])
+  const activeTools = discoverTools(
+    messages.map((m) => (typeof m === 'string' ? { role: 'user', content: m } : m)),
+    toolsArray,
+  )
 
   const toolSet: ToolSet | undefined =
     activeTools.length > 0
@@ -33,7 +36,9 @@ export async function send(
         )
       : undefined
 
-  const updatedMessages: ModelMessage[] = [...messages, { role: 'user', content: message }]
+  const updatedMessages: CoreMessage[] = messages.map((m) =>
+    typeof m === 'string' ? { role: 'user', content: m } : m,
+  )
   const snapshot = [...updatedMessages]
 
   const maxRetries = profile.maxRetries ?? 3
@@ -43,13 +48,11 @@ export async function send(
       const controller = new AbortController()
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
-      const resetTimeout = () => {
+      const resetTimeout = (ms?: number) => {
         if (timeoutId) clearTimeout(timeoutId)
-        if (profile.requestTimeoutMs) {
-          timeoutId = setTimeout(
-            () => controller.abort('request-timeout'),
-            profile.requestTimeoutMs,
-          )
+        const timeoutMs = ms ?? profile.requestTimeoutMs
+        if (timeoutMs) {
+          timeoutId = setTimeout(() => controller.abort('request-timeout'), timeoutMs)
         }
       }
 
@@ -71,7 +74,11 @@ export async function send(
           stopWhen: options.stopWhen,
           providerOptions: profile.providerOptions,
           onStepFinish: async (step: StepResult) => {
-            resetTimeout()
+            const timeoutMs =
+              step.toolCalls.length > 0 && options.toolTimeoutMs != null
+                ? options.toolTimeoutMs
+                : profile.requestTimeoutMs
+            resetTimeout(timeoutMs)
             await options.onStepFinish?.(step)
           },
         })
