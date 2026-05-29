@@ -82,11 +82,23 @@ const result4 = await runner.run(summarise, [articleText], {
 
 ### Sessions — multi-turn conversations
 
+> **Breaking change in 0.3.0**: the fourth `message: string` parameter has been removed. Pass all messages — including the new user turn — in the `messages` array instead.
+>
+> ```ts
+> // before (0.2.x)
+> send(runner, options, history, 'new user message')
+>
+> // after (0.3.0)
+> send(runner, options, [...history, 'new user message'])
+> ```
+>
+> Plain strings in the array are coerced to `{ role: 'user', content: string }` automatically.
+
 `send()` is a standalone function (not a method) that advances a conversation by one turn. The caller owns the `messages` array — helen-runner holds no inter-call state.
 
 ```ts
 import { send } from '@helentherobot/runner'
-import type { ModelMessage, SessionOptions } from '@helentherobot/runner'
+import type { CoreMessage, SessionOptions } from '@helentherobot/runner'
 
 const controller = new AbortController()
 
@@ -97,18 +109,106 @@ const options: SessionOptions = {
   abortSignal: controller.signal, // optional — cancels the in-flight call immediately
 }
 
-let messages: ModelMessage[] = []
+let messages: CoreMessage[] = []
 
 // first turn
-messages = (await send(runner, options, messages, 'What is the capital of France?')).messages
+messages = (await send(runner, options, [...messages, 'What is the capital of France?'])).messages
 
 // second turn
-messages = (await send(runner, options, messages, 'What language do they speak there?')).messages
+messages = (await send(runner, options, [...messages, 'What language do they speak there?']))
+  .messages
 ```
 
-Each call appends a `{ role: 'user' }` entry, calls the model, then appends the `{ role: 'assistant' }` response. Pass `result.messages` into the next call to carry the full history forward.
+Each call coerces any string entries to `{ role: 'user' }`, calls the model, then appends the `{ role: 'assistant' }` response. Pass `result.messages` into the next call to carry the full history forward.
 
 `send()` applies `requestTimeoutMs` from the profile as a **per-step** timeout — the clock resets after each LLM step, so multi-step tool-call flows are not punished. On timeout the message state is rolled back to the pre-call snapshot and the call is retried up to `maxRetries` times with a ~1s backoff.
+
+#### Step lifecycle hooks
+
+Use `prepareStep` to inspect or rewrite the message list before each model invocation — for example, to compact the context window when token usage is high:
+
+```ts
+import type { SessionOptions, StepResult } from '@helentherobot/runner'
+
+const options: SessionOptions = {
+  profile: 'flash',
+  prepareStep: async ({ messages, steps }) => {
+    const lastStep = steps.at(-1)
+    if (lastStep && lastStep.usage.promptTokens > 80_000) {
+      // trim old messages to stay within the context window
+      return { messages: messages.slice(-20) }
+    }
+    // returning void leaves the message list unchanged
+  },
+}
+```
+
+`prepareStep` receives `{ messages: CoreMessage[], steps: StepResult[] }`. Return `{ messages }` to replace the list for the next step, or return `void` to leave it as-is.
+
+Use `onStepFinish` to observe each step result without re-implementing the loop:
+
+```ts
+const options: SessionOptions = {
+  profile: 'flash',
+  onStepFinish: (step) => {
+    console.log('step tokens:', step.usage.promptTokens, '+', step.usage.completionTokens)
+  },
+}
+```
+
+`onStepFinish` receives the full `StepResult`. The internal timeout-reset logic always fires first, so a throwing callback does not prevent the timer from being reset.
+
+#### Controlled stopping
+
+Pass `stopWhen` to cap the number of steps or define a custom stop condition:
+
+```ts
+import { stepCountIs } from 'ai'
+
+const options: SessionOptions = {
+  profile: 'flash',
+  stopWhen: stepCountIs(10),
+}
+```
+
+`stopWhen` is forwarded to `generateText` as-is. It accepts a single `StopCondition` or an array.
+
+#### Provider options
+
+`providerOptions` set on a `ModelProfile` is automatically threaded through to every `generateText` call made with that profile. No per-call override is needed — configure it once on the profile.
+
+#### Retry control
+
+By default, only timeout errors are retried. Use `isRetryable` to extend retry behaviour to other errors — for example, HTTP 429 rate-limit responses:
+
+```ts
+const options: SessionOptions = {
+  profile: 'flash',
+  isRetryable: (error) => (error as { status?: number }).status === 429,
+  onRetry: (attempt, maxAttempts, reason) => {
+    console.log(`retry ${attempt}/${maxAttempts} — reason: ${reason}`)
+  },
+  backoffMs: (attempt, reason) => (reason === 'timeout' ? 1000 : attempt * 2000),
+}
+```
+
+- `isRetryable(error): boolean` — consulted for non-timeout errors only. Timeout errors are always retried without calling this.
+- `onRetry(attempt, maxAttempts, reason)` — called before each retry, after deciding to retry but before rollback and sleep. `reason` is `'timeout'` or the error's `.name`.
+- `backoffMs(attempt, reason): number` — return the number of milliseconds to sleep before the next attempt. Defaults to `1000` if not provided.
+
+#### Tool timeout
+
+Tool execution can take far longer than model inference. Use `toolTimeoutMs` to give tool calls a wider abort window:
+
+```ts
+const options: SessionOptions = {
+  profile: 'flash',
+  toolTimeoutMs: 60_000, // 60 s for tool execution
+  // requestTimeoutMs from the profile applies to model inference steps
+}
+```
+
+When a step finishes with pending tool calls, the abort timer is reset with `toolTimeoutMs` instead of `requestTimeoutMs`. The timer reverts to `requestTimeoutMs` for the next model step. If `toolTimeoutMs` is not set, `requestTimeoutMs` is used for all phases.
 
 ### Timeout and cancellation errors
 
@@ -118,7 +218,7 @@ Both `send()` and `runner.run()` throw typed errors so callers can handle each f
 import { send, RequestTimeoutError, RequestCancelledError } from '@helentherobot/runner'
 
 try {
-  messages = (await send(runner, options, messages, userMessage)).messages
+  messages = (await send(runner, options, [...messages, userMessage])).messages
 } catch (err) {
   if (err instanceof RequestTimeoutError) {
     // timed out and exhausted all retries — e.g. surface a "try again" message
@@ -164,6 +264,15 @@ const searchTool: DiscoverableTool = {
 const options: SessionOptions = {
   profile: 'flash',
   tools: [searchTool],
+}
+```
+
+`tools` also accepts a closure, which is evaluated once per `send()` call. This is useful when the available tool set depends on state that may change between calls:
+
+```ts
+const options: SessionOptions = {
+  profile: 'flash',
+  tools: () => loadToolsForCurrentUser(), // called once per send() invocation
 }
 ```
 

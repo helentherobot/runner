@@ -345,6 +345,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 - Phase 2: AI SDK pass-throughs
 - Phase 3: Retry surface
 - Phase 4: Signature change + `toolTimeoutMs` + lazy tools
+- Phase 5: Versioning & README
 
 ### In Progress
 
@@ -352,7 +353,7 @@ This feature will extend `send()` with a complete set of lifecycle and retry hoo
 
 ### To Do
 
-- Phase 5: Versioning & README
+- (nothing)
 
 ## Technical Notes
 
