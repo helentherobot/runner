@@ -327,7 +327,7 @@ Each model profile gets its own `ProviderQueue` (created lazily by the registry)
 | `anthropic`   | `@ai-sdk/anthropic`            |                                                           |
 | `deepseek`    | `@ai-sdk/openai`               | Uses `https://api.deepseek.com`; requires `deepSeek` key  |
 | `lm-studio`   | `@ai-sdk/openai`               | Local inference; defaults to `http://localhost:1234/v1`   |
-| `ollama`      | `ollama-ai-provider`           | No API key; defaults to `http://localhost:11434`          |
+| `ollama`      | `ollama-ai-provider`           | ⚠️ Not yet functional — `ollama-ai-provider` targets `LanguageModelV1` and is incompatible with `ai` v6 which requires `LanguageModelV3`. Blocked on an upstream release. |
 
 Provider secrets are passed in `RunnerConfig.secrets`:
 
