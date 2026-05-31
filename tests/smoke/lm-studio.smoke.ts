@@ -5,13 +5,13 @@ import { Runner, recipe } from '../../src/index.js'
 // 1. Start LM Studio, load a model, and start the local server (default port 1234)
 // 2. Run: LM_STUDIO_BASE_URL=http://localhost:1234/v1 npm run test:smoke -- lm-studio
 
-describe.skip('LM Studio smoke test', () => {
-  it('runs a trivial prompt and returns text + usage', async () => {
+describe('LM Studio smoke test', () => {
+  it('runs a trivial prompt and returns text + usage', { timeout: 60_000 }, async () => {
     const runner = new Runner({
       profiles: {
         'lm-studio': {
           provider: 'lm-studio',
-          model: 'llama3.2-3b',
+          model: 'llama-3.2-3b-instruct',
           contextWindowTokens: 8_000,
           requestTimeoutMs: 60_000,
           queue: { maxConcurrent: 1, requestsPerMinute: 10, affinityMode: false, warmup: false },

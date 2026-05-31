@@ -15,6 +15,7 @@ export class DeepSeekProvider implements Provider {
   }
 
   model(key: string): LanguageModel {
-    return this.#client(key)
+    // DeepSeek uses the /chat/completions endpoint; .chat() avoids the /responses route
+    return this.#client.chat(key)
   }
 }

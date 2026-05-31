@@ -17,6 +17,7 @@ export class LmStudioProvider implements Provider {
   }
 
   model(key: string): LanguageModel {
-    return this.#client(key)
+    // LM Studio uses the /chat/completions endpoint; .chat() avoids the /responses route
+    return this.#client.chat(key)
   }
 }

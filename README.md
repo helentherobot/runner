@@ -244,7 +244,7 @@ Tools are defined as `DiscoverableTool`, which extends the Vercel AI SDK's `Tool
 - `name: string` — used to key the tool in the call to `generateText`
 - `keywords?(): string[]` — optional. When provided, the tool is only included in the active tool set if one of its keywords appears anywhere in the conversation history (user or assistant)
 
-This lets you register a large set of tools up front and have them revealed to the model only when the conversation has reached a point where they are relevant.
+By default, progressive discovery is **on**: tools are withheld from the model and revealed only when their keywords appear in the conversation. This keeps the tool list lean for models that get confused by large tool sets.
 
 ```ts
 import { zodSchema } from 'ai'
@@ -267,6 +267,38 @@ const options: SessionOptions = {
 }
 ```
 
+#### Disabling progressive discovery
+
+For capable models, progressive discovery can hurt prompt caching — the effective system prompt changes every turn as new tools are unlocked. Set `progressiveToolDiscovery: false` to pass all tools on every turn and keep the system prompt stable:
+
+```ts
+const options: SessionOptions = {
+  profile: 'flash',
+  tools: [searchTool],
+  progressiveToolDiscovery: false, // all tools passed on every turn
+}
+```
+
+You can also set it on a `ModelProfile` so it applies automatically to every session using that profile — no per-call override needed:
+
+```ts
+const runner = new Runner({
+  profiles: {
+    sonnet: {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      progressiveToolDiscovery: false, // disable for all sessions on this profile
+      // ...
+    },
+  },
+  secrets: { anthropic: process.env.ANTHROPIC_API_KEY },
+})
+```
+
+`SessionOptions.progressiveToolDiscovery` overrides the profile value if both are set. Tools with no `keywords` field are always included regardless of the toggle.
+
+#### Dynamic tool sets
+
 `tools` also accepts a closure, which is re-evaluated before each model step. This is useful when the available tool set may change mid-turn — for example, when a tool fires and narrows the active set for subsequent steps:
 
 ```ts
@@ -275,8 +307,6 @@ const options: SessionOptions = {
   tools: () => getCurrentTools(), // re-evaluated before each model step
 }
 ```
-
-Tools with no `keywords` field (or `keywords: () => []`) are always included.
 
 ### ProviderQueue
 
@@ -289,13 +319,30 @@ Each model profile gets its own `ProviderQueue` (created lazily by the registry)
 
 ### Supported providers
 
-| Key           | Package                                                                 |
-| ------------- | ----------------------------------------------------------------------- |
-| `open-router` | `@openrouter/ai-sdk-provider`                                           |
-| `google`      | `@ai-sdk/google`                                                        |
-| `openai`      | `@ai-sdk/openai`                                                        |
-| `anthropic`   | `@ai-sdk/anthropic`                                                     |
-| `ollama`      | `ollama-ai-provider` (no API key; defaults to `http://localhost:11434`) |
+| Key           | Package                        | Notes                                                     |
+| ------------- | ------------------------------ | --------------------------------------------------------- |
+| `open-router` | `@openrouter/ai-sdk-provider`  |                                                           |
+| `google`      | `@ai-sdk/google`               |                                                           |
+| `openai`      | `@ai-sdk/openai`               |                                                           |
+| `anthropic`   | `@ai-sdk/anthropic`            |                                                           |
+| `deepseek`    | `@ai-sdk/openai`               | Uses `https://api.deepseek.com`; requires `deepSeek` key  |
+| `lm-studio`   | `@ai-sdk/openai`               | Local inference; defaults to `http://localhost:1234/v1`   |
+| `ollama`      | `ollama-ai-provider`           | No API key; defaults to `http://localhost:11434`          |
+
+Provider secrets are passed in `RunnerConfig.secrets`:
+
+```ts
+secrets: {
+  openRouter: process.env.OPENROUTER_API_KEY,
+  google: process.env.GOOGLE_API_KEY,
+  openAi: process.env.OPENAI_API_KEY,
+  anthropic: process.env.ANTHROPIC_API_KEY,
+  deepSeek: process.env.DEEPSEEK_API_KEY,
+  lmStudioBaseUrl: process.env.LM_STUDIO_BASE_URL, // optional; overrides the default base URL
+}
+```
+
+helen-runner never reads `process.env` directly — how you populate `secrets` is entirely your concern.
 
 ## Design notes
 
