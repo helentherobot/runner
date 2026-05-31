@@ -688,6 +688,105 @@ describe('send()', () => {
     })
   })
 
+  describe('progressiveToolDiscovery: false', () => {
+    it('all tools passed upfront even when keywords do not appear in messages', async () => {
+      mockGenerateText('response')
+      const tool = makeTool('search', () => ['search'])
+      const options: SessionOptions = {
+        profile: 'main',
+        tools: [tool],
+        progressiveToolDiscovery: false,
+      }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.tools).toBeDefined()
+      expect(Object.keys(call.tools!)).toContain('search')
+    })
+
+    it('static array — full tool array passed as-is', async () => {
+      mockGenerateText('response')
+      const toolA = makeTool('tool-a', () => ['aaa'])
+      const toolB = makeTool('tool-b', () => ['bbb'])
+      const options: SessionOptions = {
+        profile: 'main',
+        tools: [toolA, toolB],
+        progressiveToolDiscovery: false,
+      }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.tools).toBeDefined()
+      expect(Object.keys(call.tools!)).toEqual(expect.arrayContaining(['tool-a', 'tool-b']))
+      expect(Object.keys(call.tools!)).toHaveLength(2)
+    })
+
+    it('closure tools — closure is still called but result is not keyword-filtered', async () => {
+      mockGenerateText('response')
+      const tool = makeTool('filtered-tool', () => ['secret-keyword'])
+      const toolsClosure = vi.fn().mockReturnValue([tool])
+      const options: SessionOptions = {
+        profile: 'main',
+        tools: toolsClosure,
+        progressiveToolDiscovery: false,
+      }
+
+      await send(makeRunner(), options, ['Hello, no keywords here'])
+
+      expect(toolsClosure).toHaveBeenCalled()
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.tools).toBeDefined()
+      expect(Object.keys(call.tools!)).toContain('filtered-tool')
+    })
+
+    it('per-step via prepareStep — all tools still passed on subsequent steps without keyword filtering', async () => {
+      const toolA = makeTool('tool-a', () => ['aaa'])
+      const toolB = makeTool('tool-b', () => ['bbb'])
+      const toolsClosure = vi.fn().mockReturnValue([toolA, toolB])
+
+      let capturedPrepareStep:
+        | ((ctx: unknown) => Promise<{ tools?: Record<string, unknown> }>)
+        | undefined
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockImplementation(
+        async (opts: Parameters<typeof generateText>[0]) => {
+          capturedPrepareStep = (
+            opts as { prepareStep?: (ctx: unknown) => Promise<{ tools?: Record<string, unknown> }> }
+          ).prepareStep
+          return {
+            text: 'response',
+            usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          } as unknown as Awaited<ReturnType<typeof generateText>>
+        },
+      )
+
+      const options: SessionOptions = {
+        profile: 'main',
+        tools: toolsClosure,
+        progressiveToolDiscovery: false,
+      }
+      await send(makeRunner(), options, ['Hello'])
+
+      expect(capturedPrepareStep).toBeDefined()
+      const ctx = {
+        messages: [{ role: 'user', content: 'Hello, no keywords here' }],
+        steps: [],
+        model: {} as never,
+        usage: {} as never,
+      }
+      const stepResult = await capturedPrepareStep!(ctx)
+
+      expect(stepResult).toBeDefined()
+      expect((stepResult as { tools?: Record<string, unknown> }).tools).toBeDefined()
+      const stepTools = (stepResult as { tools?: Record<string, unknown> }).tools!
+      expect(Object.keys(stepTools)).toContain('tool-a')
+      expect(Object.keys(stepTools)).toContain('tool-b')
+    })
+  })
+
   describe('lazy tools', () => {
     it('calls the closure and uses the returned tools', async () => {
       mockGenerateText('response')

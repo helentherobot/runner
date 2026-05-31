@@ -23,9 +23,11 @@ export async function send(
   const model = provider.model(profile.model)
   const queue = runner.registry.getQueue(options.profile, profile)
 
+  const progressive = options.progressiveToolDiscovery ?? profile.progressiveToolDiscovery ?? true
+
   const buildToolSet = (msgs: ModelMessage[]): ToolSet | undefined => {
     const toolsArray = typeof options.tools === 'function' ? options.tools() : (options.tools ?? [])
-    const activeTools = discoverTools(msgs, toolsArray)
+    const activeTools = progressive ? discoverTools(msgs, toolsArray) : toolsArray
     return activeTools.length > 0
       ? Object.fromEntries(
           activeTools.map(({ name, keywords: _keywords, ...rest }) => [name, rest as Tool]),

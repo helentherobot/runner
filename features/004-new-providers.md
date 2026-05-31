@@ -255,6 +255,7 @@ Existing tests at lines 123–158 cover the progressive (default) path. Add new 
 - Worktree created, feature doc initialised
 - Phase 1: DeepSeek provider
 - Phase 2: LM Studio provider
+- Phase 3: Progressive tool discovery toggle
 
 ### In Progress
 
@@ -266,7 +267,7 @@ _(none)_
 
 ### To Do
 
-- Phase 3: Progressive tool discovery toggle
+_(none)_
 
 ## Technical Notes
 
