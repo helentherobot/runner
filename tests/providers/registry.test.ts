@@ -43,6 +43,16 @@ vi.mock('../../src/providers/deepseek.js', () => ({
   }),
 }))
 
+vi.mock('../../src/providers/lm-studio.js', () => ({
+  LmStudioProvider: vi.fn(function (
+    this: { _baseURL: string | undefined; model: unknown },
+    baseURL?: string,
+  ) {
+    this._baseURL = baseURL
+    this.model = vi.fn().mockReturnValue({})
+  }),
+}))
+
 vi.mock('ai', () => ({
   generateText: vi.fn().mockResolvedValue({}),
 }))
@@ -53,6 +63,7 @@ import { OpenAIProvider } from '../../src/providers/openai.js'
 import { AnthropicProvider } from '../../src/providers/anthropic.js'
 import { OllamaProvider } from '../../src/providers/ollama.js'
 import { DeepSeekProvider } from '../../src/providers/deepseek.js'
+import { LmStudioProvider } from '../../src/providers/lm-studio.js'
 
 const baseProfile: ModelProfile = {
   provider: 'open-router',
@@ -77,6 +88,7 @@ const baseConfig: RunnerConfig = {
     openAi: 'oai-key',
     anthropic: 'ant-key',
     deepSeek: 'ds-key',
+    lmStudioBaseUrl: 'http://192.168.1.10:1234/v1',
   },
 }
 
@@ -148,5 +160,18 @@ describe('ProviderRegistry — secrets wiring', () => {
     const registry = new ProviderRegistry(baseConfig)
     registry.getProvider('deepseek', secrets)
     expect(DeepSeekProvider).toHaveBeenCalledWith('ds-key')
+  })
+
+  it('passes lmStudioBaseUrl to LmStudioProvider', () => {
+    const registry = new ProviderRegistry(baseConfig)
+    registry.getProvider('lm-studio', secrets)
+    expect(LmStudioProvider).toHaveBeenCalledWith('http://192.168.1.10:1234/v1')
+  })
+
+  it('uses default baseURL when lmStudioBaseUrl is absent', () => {
+    const secretsWithoutBaseUrl: ResolvedSecrets = { ...secrets, lmStudioBaseUrl: undefined }
+    const registry = new ProviderRegistry(baseConfig)
+    registry.getProvider('lm-studio', secretsWithoutBaseUrl)
+    expect(LmStudioProvider).toHaveBeenCalledWith(undefined)
   })
 })

@@ -27,6 +27,7 @@ export interface ResolvedSecrets {
   openAi?: string
   anthropic?: string
   deepSeek?: string
+  lmStudioBaseUrl?: string
 }
 
 export interface RunnerConfig {
