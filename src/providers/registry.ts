@@ -7,6 +7,8 @@ import { GoogleProvider } from './google.js'
 import { OpenAIProvider } from './openai.js'
 import { AnthropicProvider } from './anthropic.js'
 import { OllamaProvider } from './ollama.js'
+import { DeepSeekProvider } from './deepseek.js'
+import { LmStudioProvider } from './lm-studio.js'
 
 export class ProviderRegistry {
   readonly #config: RunnerConfig
@@ -39,6 +41,10 @@ export class ProviderRegistry {
         return new AnthropicProvider(secrets.anthropic ?? '')
       case 'ollama':
         return new OllamaProvider()
+      case 'deepseek':
+        return new DeepSeekProvider(secrets.deepSeek ?? '')
+      case 'lm-studio':
+        return new LmStudioProvider(secrets.lmStudioBaseUrl)
       default:
         throw new Error(`Unknown provider key: ${key}`)
     }
