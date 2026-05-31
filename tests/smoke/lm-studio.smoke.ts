@@ -5,7 +5,7 @@ import { Runner, recipe } from '../../src/index.js'
 // 1. Start LM Studio, load a model, and start the local server (default port 1234)
 // 2. Run: LM_STUDIO_BASE_URL=http://localhost:1234/v1 npm run test:smoke -- lm-studio
 
-describe('LM Studio smoke test', () => {
+describe.skipIf(!process.env.LM_STUDIO_BASE_URL)('LM Studio smoke test', () => {
   it('runs a trivial prompt and returns text + usage', { timeout: 60_000 }, async () => {
     const runner = new Runner({
       profiles: {

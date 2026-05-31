@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Runner, recipe } from '../../src/index.js'
 
-describe('OpenRouter smoke test', () => {
+describe.skipIf(!process.env.OPEN_ROUTER_API_KEY)('OpenRouter smoke test', () => {
   it('runs a trivial prompt and returns text + usage', { timeout: 30_000 }, async () => {
     const runner = new Runner({
       profiles: {

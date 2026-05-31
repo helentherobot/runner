@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Runner, recipe } from '../../src/index.js'
 
-describe('Google smoke test', () => {
+describe.skipIf(!process.env.GOOGLE_API_KEY)('Google smoke test', () => {
   it('runs a trivial prompt and returns text + usage', async () => {
     const runner = new Runner({
       profiles: {
