@@ -26,6 +26,7 @@ export interface ResolvedSecrets {
   google?: string
   openAi?: string
   anthropic?: string
+  deepSeek?: string
 }
 
 export interface RunnerConfig {

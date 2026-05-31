@@ -76,14 +76,13 @@ import type { Provider } from './types.js'
 export class DeepSeekProvider implements Provider {
   readonly #client: ReturnType<typeof createOpenAI>
 
-  constructor(
-    apiKey: string,
-    deps?: { client?: ReturnType<typeof createOpenAI> },
-  ) {
-    this.#client = deps?.client ?? createOpenAI({
-      apiKey,
-      baseURL: 'https://api.deepseek.com',
-    })
+  constructor(apiKey: string, deps?: { client?: ReturnType<typeof createOpenAI> }) {
+    this.#client =
+      deps?.client ??
+      createOpenAI({
+        apiKey,
+        baseURL: 'https://api.deepseek.com',
+      })
   }
 
   model(key: string) {
@@ -149,14 +148,13 @@ const DEFAULT_BASE_URL = 'http://localhost:1234/v1'
 export class LmStudioProvider implements Provider {
   readonly #client: ReturnType<typeof createOpenAI>
 
-  constructor(
-    baseURL = DEFAULT_BASE_URL,
-    deps?: { client?: ReturnType<typeof createOpenAI> },
-  ) {
-    this.#client = deps?.client ?? createOpenAI({
-      apiKey: 'lm-studio', // LM Studio ignores the API key; placeholder required by the SDK
-      baseURL,
-    })
+  constructor(baseURL = DEFAULT_BASE_URL, deps?: { client?: ReturnType<typeof createOpenAI> }) {
+    this.#client =
+      deps?.client ??
+      createOpenAI({
+        apiKey: 'lm-studio', // LM Studio ignores the API key; placeholder required by the SDK
+        baseURL,
+      })
   }
 
   model(key: string) {
@@ -212,6 +210,7 @@ File: `src/types.ts`
 File: `src/session/types.ts`
 
 - Add to `SessionOptions`:
+
   ```typescript
   progressiveToolDiscovery?: boolean
   ```
@@ -226,9 +225,7 @@ The `buildToolSet(msgs)` closure currently always calls `discoverTools(msgs, too
 
 ```typescript
 const buildToolSet = (msgs: CoreMessage[]) => {
-  const toolsArray = typeof options.tools === 'function'
-    ? options.tools()
-    : (options.tools ?? [])
+  const toolsArray = typeof options.tools === 'function' ? options.tools() : (options.tools ?? [])
   if (options.progressiveToolDiscovery === false) {
     return toolsArray
   }
@@ -256,6 +253,7 @@ Existing tests at lines 123–158 cover the progressive (default) path. Add new 
 ### Completed
 
 - Worktree created, feature doc initialised
+- Phase 1: DeepSeek provider
 
 ### In Progress
 
@@ -267,7 +265,6 @@ _(none)_
 
 ### To Do
 
-- Phase 1: DeepSeek provider
 - Phase 2: LM Studio provider
 - Phase 3: Progressive tool discovery toggle
 
