@@ -11,22 +11,22 @@ import { LmStudioProvider } from '../../src/providers/lm-studio.js'
 describe('LmStudioProvider', () => {
   it('returns the model from the injected client', () => {
     const mockModel = {} as LanguageModel
-    const mockClient = vi.fn().mockReturnValue(mockModel)
+    const mockClient = { chat: vi.fn().mockReturnValue(mockModel) }
 
     const provider = new LmStudioProvider(undefined, { client: mockClient as never })
-    const result = provider.model('llama3.2-3b')
+    const result = provider.model('llama-3.2-3b-instruct')
 
-    expect(mockClient).toHaveBeenCalledWith('llama3.2-3b')
+    expect(mockClient.chat).toHaveBeenCalledWith('llama-3.2-3b-instruct')
     expect(result).toBe(mockModel)
   })
 
   it('uses the default baseURL when none is provided', () => {
     const mockModel = {} as LanguageModel
-    const mockClient = vi.fn().mockReturnValue(mockModel)
+    const mockClient = { chat: vi.fn().mockReturnValue(mockModel) }
     vi.mocked(createOpenAI).mockReturnValue(mockClient as never)
 
     const provider = new LmStudioProvider()
-    provider.model('llama3.2-3b')
+    provider.model('llama-3.2-3b-instruct')
 
     expect(createOpenAI).toHaveBeenCalledWith({
       apiKey: 'lm-studio',
@@ -36,11 +36,11 @@ describe('LmStudioProvider', () => {
 
   it('passes a custom baseURL to createOpenAI', () => {
     const mockModel = {} as LanguageModel
-    const mockClient = vi.fn().mockReturnValue(mockModel)
+    const mockClient = { chat: vi.fn().mockReturnValue(mockModel) }
     vi.mocked(createOpenAI).mockReturnValue(mockClient as never)
 
     const provider = new LmStudioProvider('http://192.168.1.10:1234/v1')
-    provider.model('llama3.2-3b')
+    provider.model('llama-3.2-3b-instruct')
 
     expect(createOpenAI).toHaveBeenCalledWith({
       apiKey: 'lm-studio',
@@ -50,7 +50,7 @@ describe('LmStudioProvider', () => {
 
   it('always uses the placeholder apiKey "lm-studio"', () => {
     const mockModel = {} as LanguageModel
-    const mockClient = vi.fn().mockReturnValue(mockModel)
+    const mockClient = { chat: vi.fn().mockReturnValue(mockModel) }
     vi.mocked(createOpenAI).mockReturnValue(mockClient as never)
 
     new LmStudioProvider()
