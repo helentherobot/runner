@@ -20,6 +20,13 @@ export interface ModelProfile {
   providerOptions?: ProviderOptions
   maxRetries?: number
   /**
+   * Maximum number of agentic steps (tool call → result → reply cycles) per send() call.
+   * Maps to stopWhen: stepCountIs(maxSteps) in the underlying generateText call.
+   * Overridden by SessionOptions.maxSteps if provided.
+   * Defaults to 1 (no tool loops) if neither this nor SessionOptions.stopWhen is set.
+   */
+  maxSteps?: number
+  /**
    * When false, all tools are passed on every turn without keyword filtering.
    * Keeps the system prompt stable across turns, which is better for prompt caching.
    * When true (default), tools are filtered each turn via keyword matching in discoverTools().

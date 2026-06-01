@@ -24,6 +24,13 @@ export interface SessionOptions {
   }) => Promise<{ messages?: ModelMessage[] } | void> | { messages?: ModelMessage[] } | void
   onStepFinish?: (step: StepResult<ToolSet>) => void | Promise<void>
   stopWhen?: StopCondition<ToolSet> | StopCondition<ToolSet>[]
+  /**
+   * Maximum number of agentic steps (tool call → result → reply cycles) per send() call.
+   * Overrides ModelProfile.maxSteps when provided.
+   * Ignored when stopWhen is also provided — explicit stop conditions win.
+   * Defaults to 1 (no tool loops) if neither this nor stopWhen is set.
+   */
+  maxSteps?: number
   isRetryable?: (error: unknown) => boolean
   onRetry?: (attempt: number, maxAttempts: number, reason: string) => void
   backoffMs?: (attempt: number, reason: string) => number

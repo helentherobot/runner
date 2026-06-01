@@ -58,6 +58,9 @@ function mockGenerateText(text: string, inputTokens = 10, outputTokens = 5) {
       outputTokens: outputTokens,
       cachedInputTokens: inputTokens + outputTokens,
     },
+    response: {
+      messages: [{ role: 'assistant', content: text }],
+    },
   } as unknown as Awaited<ReturnType<typeof generateText>>)
 }
 

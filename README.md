@@ -29,6 +29,7 @@ const runner = new Runner({
       contextWindowTokens: 128_000,
       requestTimeoutMs: 30_000, // per-step timeout for send(); single-step timeout for run()
       maxRetries: 3, // optional, defaults to 3 at the call site
+      maxSteps: 10, // optional — maximum agentic steps per send() call (see below)
       queue: {
         maxConcurrent: 4,
         requestsPerMinute: 60,
@@ -119,7 +120,7 @@ messages = (await send(runner, options, [...messages, 'What language do they spe
   .messages
 ```
 
-Each call coerces any string entries to `{ role: 'user' }`, calls the model, then appends the `{ role: 'assistant' }` response. Pass `result.messages` into the next call to carry the full history forward.
+Each call coerces any string entries to `{ role: 'user' }`, calls the model, then appends all generated messages — including any tool calls, tool results, and the final assistant response — to the array. Pass `result.messages` into the next call to carry the full history forward, including the complete tool interaction chain from any agentic steps.
 
 `send()` applies `requestTimeoutMs` from the profile as a **per-step** timeout — the clock resets after each LLM step, so multi-step tool-call flows are not punished. On timeout the message state is rolled back to the pre-call snapshot and the call is retried up to `maxRetries` times with a ~1s backoff.
 
@@ -158,20 +159,77 @@ const options: SessionOptions = {
 
 `onStepFinish` receives the full `StepResult`. The internal timeout-reset logic always fires first, so a throwing callback does not prevent the timer from being reset.
 
+#### Agentic tool-calling loops
+
+By default the AI SDK stops after one step, which means the model calls a tool, the tool executes, and the loop ends — the model never sees the result. To let the model complete the loop (call tool → get result → generate a final reply), set `maxSteps` to a value greater than one.
+
+`maxSteps` can be set on the profile so it applies to every session, or overridden per-call on `SessionOptions`:
+
+```ts
+// on the profile — applies to every send() call using this profile
+const runner = new Runner({
+  profiles: {
+    flash: {
+      provider: 'google',
+      model: 'gemini-2.5-flash',
+      maxSteps: 10,
+      // ...
+    },
+  },
+})
+
+// or per-call on SessionOptions — overrides the profile value
+const options: SessionOptions = {
+  profile: 'flash',
+  tools: [myTool],
+  maxSteps: 5,
+}
+```
+
+`send()` returns all generated messages — tool calls, tool results, and the final assistant reply — in `result.messages`. Pass them into the next `send()` call to carry the full tool interaction history forward:
+
+```ts
+import { zodSchema } from 'ai'
+import type { DiscoverableTool } from '@helentherobot/runner'
+import { z } from 'zod'
+
+const addTool: DiscoverableTool = {
+  name: 'add',
+  description: 'Add two numbers together.',
+  inputSchema: zodSchema(z.object({ a: z.number(), b: z.number() })),
+  execute: async ({ a, b }) => ({ result: a + b }),
+}
+
+let messages = []
+
+// First turn — model calls the tool, result.messages contains the full chain
+const first = await send(runner, { profile: 'flash', tools: [addTool], maxSteps: 5 }, [
+  ...messages,
+  'Use the add tool to calculate 7 + 5.',
+])
+// first.messages: [user, assistant(tool-call), tool(result), assistant(final reply)]
+
+// Second turn — full tool history is visible to the model
+const second = await send(runner, { profile: 'flash', tools: [addTool], maxSteps: 5 }, [
+  ...first.messages,
+  'What was the result of the addition?',
+])
+```
+
 #### Controlled stopping
 
-Pass `stopWhen` to cap the number of steps or define a custom stop condition:
+`maxSteps` maps to `stopWhen: stepCountIs(n)` internally. For custom stop conditions, use `stopWhen` directly — it takes precedence over `maxSteps` when both are set:
 
 ```ts
 import { stepCountIs } from 'ai'
 
 const options: SessionOptions = {
   profile: 'flash',
-  stopWhen: stepCountIs(10),
+  stopWhen: stepCountIs(10), // takes precedence over any maxSteps setting
 }
 ```
 
-`stopWhen` is forwarded to `generateText` as-is. It accepts a single `StopCondition` or an array.
+`stopWhen` is forwarded to `generateText` as-is. It accepts a single `StopCondition` or an array. Stop condition precedence: `options.stopWhen` → `options.maxSteps` → `profile.maxSteps` → AI SDK default (`stepCountIs(1)`).
 
 #### Provider options
 
@@ -350,6 +408,8 @@ helen-runner never reads `process.env` directly — how you populate `secrets` i
 
 **`send()` is pure.** It takes messages in and returns `{ messages, usage }` out. Nothing is stored between calls. The runner itself holds no conversation state. On timeout-triggered retries, `send()` rolls the message array back to the pre-call snapshot before re-trying, so the caller always receives a consistent view.
 
+**`send()` preserves the full tool interaction chain.** `result.messages` contains every message generated during the call — assistant tool-call entries, tool result entries, and the final assistant reply — not just the final text. This means passing `result.messages` into the next `send()` call correctly includes all tool interactions the model performed, which is required for coherent multi-turn agentic sessions.
+
 **Registry is scoped to the `Runner` instance.** Providers and queues are not module-level singletons. Each `new Runner(config)` gets a clean registry, which avoids cross-test contamination and makes multiple runners with different configs straightforward.
 
 **Secrets stay in config.** `RunnerConfig.secrets` is where API keys live. helen-runner never reads `process.env` directly. How you populate the secrets object — env vars, a secrets manager, test fixtures — is entirely your concern.
@@ -366,5 +426,8 @@ npm run format      # format all files with Prettier
 Smoke tests require a local `.env` file with real API keys and are excluded from the main test run:
 
 ```sh
-npm run test:smoke
+npm run test:smoke          # all smoke tests
+npm run test:smoke -- send  # tool-calling smoke test only (requires GOOGLE_API_KEY)
 ```
+
+The `send` smoke test makes real API calls to verify that multi-step tool-calling works end-to-end: the model calls a tool, the result is fed back, and the final reply references it. It also verifies that a second `send()` call receives the full tool interaction history from the first turn.

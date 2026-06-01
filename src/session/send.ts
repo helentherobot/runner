@@ -1,4 +1,4 @@
-import { generateText } from 'ai'
+import { generateText, stepCountIs } from 'ai'
 import type { ModelMessage, StepResult, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
@@ -42,6 +42,11 @@ export async function send(
 
   const maxRetries = profile.maxRetries ?? 3
 
+  // Resolve maxSteps: session-level overrides profile-level.
+  // Only applied when stopWhen is not explicitly provided — explicit stop conditions win.
+  const effectiveMaxSteps = options.maxSteps ?? profile.maxSteps
+  const resolvedMaxSteps = effectiveMaxSteps != null ? stepCountIs(effectiveMaxSteps) : undefined
+
   const result = await queue.enqueue(options.scope ?? options.profile, async () => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const controller = new AbortController()
@@ -74,7 +79,7 @@ export async function send(
             if (typeof options.tools !== 'function') return base
             return { ...base, tools: buildToolSet(ctx.messages as ModelMessage[]) }
           },
-          stopWhen: options.stopWhen,
+          stopWhen: options.stopWhen ?? resolvedMaxSteps,
           providerOptions: profile.providerOptions,
           onStepFinish: async (step: StepResult<ToolSet>) => {
             const timeoutMs =
@@ -121,7 +126,11 @@ export async function send(
     throw new RequestTimeoutError(maxRetries)
   })
 
-  updatedMessages.push({ role: 'assistant', content: result.text })
+  // Append the full response message chain — assistant turns, tool calls, and tool results.
+  // result.response.messages is the cumulative set of all generated messages across every step,
+  // not just the final text. Without this, looped tool-calling sessions lose the entire
+  // tool interaction history and the model can't see what it called or what came back.
+  updatedMessages.push(...result.response.messages)
 
   const inputTokens = result.usage.inputTokens ?? 0
   const outputTokens = result.usage.outputTokens ?? 0

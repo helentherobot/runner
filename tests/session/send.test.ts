@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, expectTypeOf } from 'vitest'
 import { zodSchema } from 'ai'
-import type { CoreMessage } from 'ai'
+import type { CoreMessage, ModelMessage } from 'ai'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
 import type { ModelProfile } from '../../src/types.js'
 import type { DiscoverableTool, SessionOptions } from '../../src/session/types.js'
@@ -62,11 +62,14 @@ function makeTool(name: string, keywords?: () => string[]): DiscoverableTool {
   }
 }
 
-function mockGenerateText(text: string) {
+function mockGenerateText(text: string, responseMessages?: ModelMessage[]) {
   mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
   vi.mocked(generateText).mockResolvedValue({
     text,
     usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+    response: {
+      messages: responseMessages ?? [{ role: 'assistant', content: text }],
+    },
   } as unknown as Awaited<ReturnType<typeof generateText>>)
 }
 
@@ -283,6 +286,34 @@ describe('send()', () => {
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.stopWhen).toBeUndefined()
     })
+
+    it('array form is forwarded as-is and is not overridden by maxSteps', async () => {
+      // stopWhen can be an array of conditions — even an array wins over maxSteps
+      // because arrays are truthy and ?? only fires on null/undefined
+      mockGenerateText('response')
+      const cond1 = vi.fn().mockReturnValue(Promise.resolve(false))
+      const cond2 = vi.fn().mockReturnValue(Promise.resolve(false))
+      const stopWhen = [cond1, cond2]
+      const options: SessionOptions = { profile: 'main', stopWhen, maxSteps: 5 }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBe(stopWhen)
+    })
+
+    it('wins over profile-level maxSteps', async () => {
+      // An explicit stopWhen beats maxSteps regardless of whether it comes from the profile
+      const profile: ModelProfile = { ...baseProfile, maxSteps: 10 }
+      mockGenerateText('response')
+      const stopWhen = vi.fn().mockReturnValue(false)
+      const options: SessionOptions = { profile: 'main', stopWhen }
+
+      await send(makeRunner(profile), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBe(stopWhen)
+    })
   })
 
   describe('providerOptions', () => {
@@ -323,6 +354,7 @@ describe('send()', () => {
           return {
             text: 'response',
             usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+            response: { messages: [{ role: 'assistant', content: 'response' }] },
           } as unknown as Awaited<ReturnType<typeof generateText>>
         },
       )
@@ -346,6 +378,7 @@ describe('send()', () => {
           return {
             text: 'response',
             usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+            response: { messages: [{ role: 'assistant', content: 'response' }] },
           } as unknown as Awaited<ReturnType<typeof generateText>>
         },
       )
@@ -467,6 +500,7 @@ describe('send()', () => {
         return Promise.resolve({
           text: 'recovered',
           usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          response: { messages: [{ role: 'assistant', content: 'recovered' }] },
         } as unknown as Awaited<ReturnType<typeof generateText>>)
       })
 
@@ -497,6 +531,7 @@ describe('send()', () => {
         return Promise.resolve({
           text: 'ok',
           usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          response: { messages: [{ role: 'assistant', content: 'ok' }] },
         } as unknown as Awaited<ReturnType<typeof generateText>>)
       })
 
@@ -526,6 +561,7 @@ describe('send()', () => {
         return Promise.resolve({
           text: 'ok',
           usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          response: { messages: [{ role: 'assistant', content: 'ok' }] },
         } as unknown as Awaited<ReturnType<typeof generateText>>)
       })
 
@@ -553,6 +589,7 @@ describe('send()', () => {
         return Promise.resolve({
           text: 'ok',
           usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+          response: { messages: [{ role: 'assistant', content: 'ok' }] },
         } as unknown as Awaited<ReturnType<typeof generateText>>)
       })
 
@@ -589,6 +626,7 @@ describe('send()', () => {
               resolve({
                 text: 'success after retry',
                 usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+                response: { messages: [{ role: 'assistant', content: 'success after retry' }] },
               } as unknown as Awaited<ReturnType<typeof generateText>>)
             }
           }),
@@ -653,6 +691,7 @@ describe('send()', () => {
           return {
             text: 'done',
             usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+            response: { messages: [{ role: 'assistant', content: 'done' }] },
           } as unknown as Awaited<ReturnType<typeof generateText>>
         },
       )
@@ -677,6 +716,7 @@ describe('send()', () => {
           return {
             text: 'done',
             usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+            response: { messages: [{ role: 'assistant', content: 'done' }] },
           } as unknown as Awaited<ReturnType<typeof generateText>>
         },
       )
@@ -759,6 +799,7 @@ describe('send()', () => {
           return {
             text: 'response',
             usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+            response: { messages: [{ role: 'assistant', content: 'response' }] },
           } as unknown as Awaited<ReturnType<typeof generateText>>
         },
       )
@@ -835,6 +876,7 @@ describe('send()', () => {
           return {
             text: 'response',
             usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+            response: { messages: [{ role: 'assistant', content: 'response' }] },
           } as unknown as Awaited<ReturnType<typeof generateText>>
         },
       )
@@ -921,6 +963,151 @@ describe('send()', () => {
       // Static array: prepareStep returns no tools override — AI SDK keeps the initial toolSet
       const stepConfig = capture.stepConfig as { tools?: unknown }
       expect(stepConfig?.tools).toBeUndefined()
+    })
+  })
+
+  describe('maxSteps', () => {
+    it('sets stopWhen when provided on SessionOptions', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main', maxSteps: 5 }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBeDefined()
+      expect(call.stopWhen).toBeTypeOf('function')
+    })
+
+    it('uses profile maxSteps when not set on SessionOptions', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxSteps: 3 }
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(profile), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBeDefined()
+      expect(call.stopWhen).toBeTypeOf('function')
+    })
+
+    it('SessionOptions.maxSteps overrides profile maxSteps', async () => {
+      // Both are set — session wins. Either way a stopWhen function is produced.
+      // Behavioural difference (step count) is enforced by the AI SDK, not by us.
+      const profile: ModelProfile = { ...baseProfile, maxSteps: 3 }
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main', maxSteps: 10 }
+
+      await send(makeRunner(profile), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBeDefined()
+      expect(call.stopWhen).toBeTypeOf('function')
+    })
+
+    it('explicit stopWhen wins over maxSteps', async () => {
+      const explicitStopWhen = vi.fn().mockReturnValue(Promise.resolve(false))
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main', maxSteps: 5, stopWhen: explicitStopWhen }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBe(explicitStopWhen)
+    })
+
+    it('stopWhen is undefined when neither maxSteps nor stopWhen is set', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect(call.stopWhen).toBeUndefined()
+    })
+  })
+
+  describe('tool call messages', () => {
+    function mockMultiStepGeneration(responseMessages: ModelMessage[]) {
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockResolvedValue({
+        text: 'final response',
+        usage: { inputTokens: 20, outputTokens: 10, cachedInputTokens: 30 },
+        response: { messages: responseMessages },
+      } as unknown as Awaited<ReturnType<typeof generateText>>)
+    }
+
+    it('result.messages includes all tool call and tool result entries', async () => {
+      const toolCallMsg: ModelMessage = {
+        role: 'assistant',
+        content: [{ type: 'tool-call', toolCallId: 'tc1', toolName: 'lookup', input: { q: 'x' } }],
+      }
+      const toolResultMsg: ModelMessage = {
+        role: 'tool',
+        content: [{ type: 'tool-result', toolCallId: 'tc1', toolName: 'lookup', output: '42' }],
+      }
+      const finalMsg: ModelMessage = { role: 'assistant', content: 'The answer is 42' }
+
+      mockMultiStepGeneration([toolCallMsg, toolResultMsg, finalMsg])
+
+      const result = await send(makeRunner(), { profile: 'main' }, ['What is x?'])
+
+      // user + assistant(tool-call) + tool(result) + assistant(final)
+      expect(result.messages).toHaveLength(4)
+      expect(result.messages[0]).toEqual({ role: 'user', content: 'What is x?' })
+      expect(result.messages[1]).toEqual(toolCallMsg)
+      expect(result.messages[2]).toEqual(toolResultMsg)
+      expect(result.messages[3]).toEqual(finalMsg)
+    })
+
+    it('result.messages.at(-1) is the final assistant message after tool use', async () => {
+      const finalMsg: ModelMessage = { role: 'assistant', content: 'Done.' }
+      mockMultiStepGeneration([
+        {
+          role: 'assistant',
+          content: [{ type: 'tool-call', toolCallId: 'tc1', toolName: 'run', input: {} }],
+        },
+        {
+          role: 'tool',
+          content: [{ type: 'tool-result', toolCallId: 'tc1', toolName: 'run', output: 'ok' }],
+        },
+        finalMsg,
+      ])
+
+      const result = await send(makeRunner(), { profile: 'main' }, ['Go'])
+
+      expect(result.messages.at(-1)).toEqual(finalMsg)
+    })
+
+    it('second turn receives the full tool interaction history from the first turn', async () => {
+      const toolCallMsg: ModelMessage = {
+        role: 'assistant',
+        content: [{ type: 'tool-call', toolCallId: 'tc1', toolName: 'lookup', input: { q: 'x' } }],
+      }
+      const toolResultMsg: ModelMessage = {
+        role: 'tool',
+        content: [{ type: 'tool-result', toolCallId: 'tc1', toolName: 'lookup', output: '42' }],
+      }
+      const assistantReply: ModelMessage = { role: 'assistant', content: 'The answer is 42' }
+
+      mockMultiStepGeneration([toolCallMsg, toolResultMsg, assistantReply])
+      const first = await send(makeRunner(), { profile: 'main' }, ['What is x?'])
+
+      expect(first.messages).toHaveLength(4)
+
+      // Set up second turn response
+      vi.mocked(generateText).mockResolvedValueOnce({
+        text: 'Still 42',
+        usage: { inputTokens: 10, outputTokens: 5, cachedInputTokens: 15 },
+        response: { messages: [{ role: 'assistant', content: 'Still 42' }] },
+      } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+      await send(makeRunner(), { profile: 'main' }, [...first.messages, 'Are you sure?'])
+
+      const secondCall = vi.mocked(generateText).mock.calls[1][0]
+      // The second call must include the tool call and tool result from the first turn
+      expect(secondCall.messages).toContainEqual(toolCallMsg)
+      expect(secondCall.messages).toContainEqual(toolResultMsg)
+      expect(secondCall.messages).toContainEqual(assistantReply)
     })
   })
 })
