@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { RequestTimeoutError, RequestCancelledError } from '@/index.js'
+import { RequestTimeoutError, RequestCancelledError } from '../src/index.js'
 
 describe('RequestTimeoutError', () => {
   it('is an instance of Error', () => {

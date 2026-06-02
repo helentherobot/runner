@@ -1,5 +1,5 @@
 import { describe, it, expectTypeOf } from 'vitest'
-import type { RunnerConfig, ModelProfile, QueueConfig } from '@/types.js'
+import type { RunnerConfig, ModelProfile, QueueConfig } from '../src/types.js'
 
 describe('QueueConfig', () => {
   it('accepts a valid shape', () => {
