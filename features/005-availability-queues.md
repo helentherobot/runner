@@ -7,6 +7,7 @@
 Runner currently treats all configured profiles as permanently available. There's no way to express "try this local model first, fall back to cloud if it's down" — every `send()` call targets exactly one profile. This means local-first inference (e.g. LM Studio Gemma with Haiku fallback) requires the caller to implement retry logic externally.
 
 This feature adds:
+
 - **Availability checks** on profiles — fast-reject before entering the queue
 - **Composite profiles** — ordered candidate lists with automatic fallback
 - **Anthropic Agent SDK provider** — OAuth-based auth for subscription billing
@@ -23,21 +24,27 @@ Callers can define a composite profile like `"local-first"` that tries LM Studio
 Add the typed error and availability check infrastructure.
 
 **`src/errors.ts`**
+
 - Add `ProviderUnavailableError` class following existing pattern (`RequestTimeoutError`, `RequestCancelledError`). Constructor takes a message string. Sets `this.name`.
 
 **`src/types.ts`**
+
 - Add optional `isAvailable?: () => Promise<boolean>` to `ModelProfile`. Profile-scoped — each profile owns its availability semantics independently of its provider.
 
 **`src/session/send.ts`**
+
 - After profile/provider/queue resolution (line ~23), before `queue.enqueue()` (line ~50): if `profile.isAvailable` is defined, `await` it. If it returns `false`, throw `ProviderUnavailableError`.
 
 **`src/recipes/run-recipe.ts`**
+
 - Same check: after profile resolution, before `queue.enqueue()`. If `isAvailable` returns `false`, throw `ProviderUnavailableError`.
 
 **`src/index.ts`**
+
 - Export `ProviderUnavailableError`.
 
 **Tests**
+
 - `send()` with `isAvailable: () => false` throws `ProviderUnavailableError`
 - `send()` with `isAvailable: () => true` proceeds normally
 - `send()` with no `isAvailable` proceeds normally (backward compat)
@@ -51,14 +58,17 @@ Add the typed error and availability check infrastructure.
 Composable caching wrapper so `isAvailable()` doesn't fire on every call.
 
 **`src/availability.ts`** (new file)
+
 - Export `withAvailabilityCache(fn: () => Promise<boolean>, ttlMs: number): () => Promise<boolean>`
 - Returns a wrapper that caches the result for `ttlMs` milliseconds. After TTL expires, the next call re-evaluates.
 - Cache stores `{ value: boolean, expiresAt: number }`. Uses `Date.now()` for time (injectable for tests via optional clock param or just testable with fake timers).
 
 **`src/index.ts`**
+
 - Export `withAvailabilityCache`.
 
 **Tests**
+
 - Calls underlying function only once within TTL window
 - Re-evaluates after TTL expires
 - Handles async errors gracefully (returns `false` on throw, does not cache errors)
@@ -71,12 +81,14 @@ Composable caching wrapper so `isAvailable()` doesn't fire on every call.
 Virtual profiles that try an ordered list of candidates.
 
 **`src/types.ts`**
+
 - Add `CompositeProfile` type: `{ kind: 'composite'; candidates: string[] }`
 - Create union: `type AnyProfile = ModelProfile | CompositeProfile`
 - Update `RunnerConfig.profiles` to `Record<string, AnyProfile>`
 - `ModelProfile` stays as-is (no `kind` field needed — absence of `kind` or `kind !== 'composite'` means concrete)
 
 **`src/session/send.ts`**
+
 - Add composite resolution: if the resolved profile has `kind === 'composite'`, loop over `candidates`:
   - Look up each candidate in `runner.config.profiles` (must be a concrete `ModelProfile`, not another composite — throw if nested)
   - Run the existing send logic (availability check, queue, generateText) for that candidate
@@ -87,15 +99,19 @@ Virtual profiles that try an ordered list of candidates.
 - **Scope**: pass candidate key as scope fallback, not the composite key
 
 **`src/recipes/run-recipe.ts`**
+
 - Same composite resolution loop wrapping the existing recipe logic
 
 **`src/errors.ts`**
+
 - No new error needed — rethrow last candidate's error on exhaustion
 
 **`src/index.ts`**
+
 - Export `CompositeProfile`, `AnyProfile`
 
 **Tests**
+
 - Composite with first candidate available: uses first, never tries second
 - Composite with first unavailable: falls back to second
 - Composite with all candidates failing: throws last error
@@ -110,6 +126,7 @@ Virtual profiles that try an ordered list of candidates.
 New provider using OAuth Bearer auth via `@ai-sdk/anthropic` authToken option.
 
 **`src/providers/anthropic-agent.ts`** (new file)
+
 - `AnthropicAgentProvider implements Provider`
 - Constructor accepts optional `credentialsPath` (default `~/.claude/.credentials.json`)
 - Reads file synchronously at construction: `JSON.parse(readFileSync(path, 'utf-8'))`
@@ -119,12 +136,15 @@ New provider using OAuth Bearer auth via `@ai-sdk/anthropic` authToken option.
 - `model(key)` delegates to `this.#client(key)`
 
 **`src/providers/registry.ts`**
+
 - Add `case 'anthropic-agent':` that instantiates `AnthropicAgentProvider` with no secrets (credentials from disk)
 
 **`src/index.ts`**
+
 - Export `AnthropicAgentProvider`
 
 **Tests**
+
 - Provider reads token from credentials file and creates client with authToken
 - Provider throws if credentials file missing
 - Provider throws if accessToken absent in file
@@ -136,16 +156,20 @@ New provider using OAuth Bearer auth via `@ai-sdk/anthropic` authToken option.
 ### Phase 5: maxOutputTokens on SessionOptions
 
 **`src/session/types.ts`**
+
 - Add `maxOutputTokens?: number` to `SessionOptions`
 
 **`src/types.ts`**
+
 - Add `maxOutputTokens?: number` to `ModelProfile` (profile-level default)
 
 **`src/session/send.ts`**
+
 - Resolve `maxOutputTokens`: session-level overrides profile-level (same pattern as `maxSteps` on line ~47)
 - Pass resolved value as `maxTokens` to `generateText()` call
 
 **Tests**
+
 - `send()` with `maxOutputTokens` in session options passes it to generateText
 - Profile-level `maxOutputTokens` used when session-level absent
 - Session-level overrides profile-level

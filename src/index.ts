@@ -1,4 +1,5 @@
 export { Runner } from './runner.js'
+export { withAvailabilityCache } from './availability.js'
 export { RequestTimeoutError, RequestCancelledError, ProviderUnavailableError } from './errors.js'
 export type { RunnerConfig, ModelProfile, QueueConfig } from './types.js'
 
