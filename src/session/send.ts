@@ -2,8 +2,9 @@ import { generateText, stepCountIs } from 'ai'
 import type { ModelMessage, StepResult, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
+import type { ModelProfile } from '../types.js'
 import { discoverTools } from './discover-tools.js'
-import { RequestTimeoutError, RequestCancelledError } from '../errors.js'
+import { RequestTimeoutError, RequestCancelledError, ProviderUnavailableError } from '../errors.js'
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
@@ -12,16 +13,41 @@ export async function send(
   options: SessionOptions,
   messages: (ModelMessage | string)[],
 ): Promise<SendResult> {
-  const profile = runner.config.profiles[options.profile]
+  const resolved = runner.config.profiles[options.profile]
 
-  if (!profile) {
+  if (!resolved) {
     throw new Error(`Unknown profile: ${options.profile}`)
   }
+
+  if ('kind' in resolved && resolved.kind === 'composite') {
+    let lastError: unknown
+    for (const candidateKey of resolved.candidates) {
+      const candidate = runner.config.profiles[candidateKey]
+      if (!candidate) {
+        throw new Error(`Unknown profile: ${candidateKey}`)
+      }
+      if ('kind' in candidate && candidate.kind === 'composite') {
+        throw new Error(`Nested composite profiles are not allowed: "${candidateKey}" is composite`)
+      }
+      try {
+        return await send(runner, { ...options, profile: candidateKey }, messages)
+      } catch (err) {
+        lastError = err
+      }
+    }
+    throw lastError
+  }
+
+  const profile = resolved as ModelProfile
 
   const secrets = runner.config.secrets ?? {}
   const provider = runner.registry.getProvider(profile.provider, secrets)
   const model = provider.model(profile.model)
   const queue = runner.registry.getQueue(options.profile, profile)
+
+  if (profile.isAvailable && !(await profile.isAvailable())) {
+    throw new ProviderUnavailableError(`Profile "${options.profile}" is not available`)
+  }
 
   const progressive = options.progressiveToolDiscovery ?? profile.progressiveToolDiscovery ?? true
 
@@ -46,6 +72,9 @@ export async function send(
   // Only applied when stopWhen is not explicitly provided — explicit stop conditions win.
   const effectiveMaxSteps = options.maxSteps ?? profile.maxSteps
   const resolvedMaxSteps = effectiveMaxSteps != null ? stepCountIs(effectiveMaxSteps) : undefined
+
+  // Resolve maxOutputTokens: session-level overrides profile-level.
+  const resolvedMaxOutputTokens = options.maxOutputTokens ?? profile.maxOutputTokens
 
   const result = await queue.enqueue(options.scope ?? options.profile, async () => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -73,6 +102,7 @@ export async function send(
           messages: updatedMessages,
           tools: buildToolSet(updatedMessages),
           maxRetries: 0,
+          ...(resolvedMaxOutputTokens != null ? { maxOutputTokens: resolvedMaxOutputTokens } : {}),
           abortSignal: mergedSignal,
           prepareStep: async (ctx) => {
             const base = options.prepareStep ? ((await options.prepareStep!(ctx)) ?? {}) : {}

@@ -27,12 +27,29 @@ export interface ModelProfile {
    */
   maxSteps?: number
   /**
+   * Maximum number of output tokens per generateText call.
+   * Overridden by SessionOptions.maxOutputTokens if provided.
+   */
+  maxOutputTokens?: number
+  /**
    * When false, all tools are passed on every turn without keyword filtering.
    * Keeps the system prompt stable across turns, which is better for prompt caching.
    * When true (default), tools are filtered each turn via keyword matching in discoverTools().
    */
   progressiveToolDiscovery?: boolean
+  /**
+   * Optional availability check. When defined, called before enqueuing a request.
+   * If it returns false, a ProviderUnavailableError is thrown immediately.
+   */
+  isAvailable?: () => Promise<boolean>
 }
+
+export interface CompositeProfile {
+  kind: 'composite'
+  candidates: string[]
+}
+
+export type AnyProfile = ModelProfile | CompositeProfile
 
 export interface ResolvedSecrets {
   openRouter?: string
@@ -44,6 +61,6 @@ export interface ResolvedSecrets {
 }
 
 export interface RunnerConfig {
-  profiles: Record<string, ModelProfile>
+  profiles: Record<string, AnyProfile>
   secrets?: ResolvedSecrets
 }
