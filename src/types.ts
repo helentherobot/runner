@@ -27,6 +27,11 @@ export interface ModelProfile {
    */
   maxSteps?: number
   /**
+   * Maximum number of output tokens per generateText call.
+   * Overridden by SessionOptions.maxOutputTokens if provided.
+   */
+  maxOutputTokens?: number
+  /**
    * When false, all tools are passed on every turn without keyword filtering.
    * Keeps the system prompt stable across turns, which is better for prompt caching.
    * When true (default), tools are filtered each turn via keyword matching in discoverTools().

@@ -31,6 +31,11 @@ export interface SessionOptions {
    * Defaults to 1 (no tool loops) if neither this nor stopWhen is set.
    */
   maxSteps?: number
+  /**
+   * Maximum number of output tokens per generateText call.
+   * Overrides ModelProfile.maxOutputTokens when provided.
+   */
+  maxOutputTokens?: number
   isRetryable?: (error: unknown) => boolean
   onRetry?: (attempt: number, maxAttempts: number, reason: string) => void
   backoffMs?: (attempt: number, reason: string) => number

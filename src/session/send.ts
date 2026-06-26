@@ -73,6 +73,9 @@ export async function send(
   const effectiveMaxSteps = options.maxSteps ?? profile.maxSteps
   const resolvedMaxSteps = effectiveMaxSteps != null ? stepCountIs(effectiveMaxSteps) : undefined
 
+  // Resolve maxOutputTokens: session-level overrides profile-level.
+  const resolvedMaxOutputTokens = options.maxOutputTokens ?? profile.maxOutputTokens
+
   const result = await queue.enqueue(options.scope ?? options.profile, async () => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const controller = new AbortController()
@@ -99,6 +102,7 @@ export async function send(
           messages: updatedMessages,
           tools: buildToolSet(updatedMessages),
           maxRetries: 0,
+          ...(resolvedMaxOutputTokens != null ? { maxOutputTokens: resolvedMaxOutputTokens } : {}),
           abortSignal: mergedSignal,
           prepareStep: async (ctx) => {
             const base = options.prepareStep ? ((await options.prepareStep!(ctx)) ?? {}) : {}

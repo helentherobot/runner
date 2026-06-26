@@ -222,7 +222,7 @@ describe('send()', () => {
     expect(generateTextCall.maxRetries).toBe(0)
   })
 
-  it('does not pass maxOutputTokens to generateText', async () => {
+  it('does not pass maxOutputTokens to generateText when not configured', async () => {
     mockGenerateText('response')
     const options: SessionOptions = { profile: 'main' }
 
@@ -1055,6 +1055,40 @@ describe('send()', () => {
 
       const call = vi.mocked(generateText).mock.calls[0][0]
       expect(call.stopWhen).toBeUndefined()
+    })
+  })
+
+  describe('maxOutputTokens', () => {
+    it('passes maxOutputTokens to generateText when set on SessionOptions', async () => {
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main', maxOutputTokens: 4096 }
+
+      await send(makeRunner(), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect((call as { maxOutputTokens?: number }).maxOutputTokens).toBe(4096)
+    })
+
+    it('uses profile maxOutputTokens when not set on SessionOptions', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxOutputTokens: 2048 }
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main' }
+
+      await send(makeRunner(profile), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect((call as { maxOutputTokens?: number }).maxOutputTokens).toBe(2048)
+    })
+
+    it('SessionOptions.maxOutputTokens overrides profile maxOutputTokens', async () => {
+      const profile: ModelProfile = { ...baseProfile, maxOutputTokens: 2048 }
+      mockGenerateText('response')
+      const options: SessionOptions = { profile: 'main', maxOutputTokens: 8192 }
+
+      await send(makeRunner(profile), options, ['Hello'])
+
+      const call = vi.mocked(generateText).mock.calls[0][0]
+      expect((call as { maxOutputTokens?: number }).maxOutputTokens).toBe(8192)
     })
   })
 
