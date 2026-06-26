@@ -1,5 +1,5 @@
 export { Runner } from './runner.js'
-export { RequestTimeoutError, RequestCancelledError } from './errors.js'
+export { RequestTimeoutError, RequestCancelledError, ProviderUnavailableError } from './errors.js'
 export type { RunnerConfig, ModelProfile, QueueConfig } from './types.js'
 
 export { recipe } from './recipes/recipe.js'

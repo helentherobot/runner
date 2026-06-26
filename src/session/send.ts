@@ -3,7 +3,7 @@ import type { ModelMessage, StepResult, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
 import { discoverTools } from './discover-tools.js'
-import { RequestTimeoutError, RequestCancelledError } from '../errors.js'
+import { RequestTimeoutError, RequestCancelledError, ProviderUnavailableError } from '../errors.js'
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
@@ -22,6 +22,10 @@ export async function send(
   const provider = runner.registry.getProvider(profile.provider, secrets)
   const model = provider.model(profile.model)
   const queue = runner.registry.getQueue(options.profile, profile)
+
+  if (profile.isAvailable && !(await profile.isAvailable())) {
+    throw new ProviderUnavailableError(`Profile "${options.profile}" is not available`)
+  }
 
   const progressive = options.progressiveToolDiscovery ?? profile.progressiveToolDiscovery ?? true
 

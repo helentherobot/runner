@@ -4,7 +4,11 @@ import type { CoreMessage, ModelMessage } from 'ai'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
 import type { ModelProfile } from '../../src/types.js'
 import type { DiscoverableTool, SessionOptions } from '../../src/session/types.js'
-import { RequestTimeoutError, RequestCancelledError } from '../../src/errors.js'
+import {
+  RequestTimeoutError,
+  RequestCancelledError,
+  ProviderUnavailableError,
+} from '../../src/errors.js'
 import { z } from 'zod'
 
 const mockEnqueue = vi.fn()
@@ -642,6 +646,34 @@ describe('send()', () => {
       expect(result.messages).toHaveLength(2)
       expect(result.messages[0]).toEqual({ role: 'user', content: 'Hello' })
       expect(result.messages[1]).toEqual({ role: 'assistant', content: 'success after retry' })
+    })
+  })
+
+  describe('isAvailable', () => {
+    it('throws ProviderUnavailableError when isAvailable returns false', async () => {
+      const profile: ModelProfile = { ...baseProfile, isAvailable: async () => false }
+
+      await expect(send(makeRunner(profile), { profile: 'main' }, ['Hello'])).rejects.toThrow(
+        ProviderUnavailableError,
+      )
+      expect(mockEnqueue).not.toHaveBeenCalled()
+    })
+
+    it('proceeds normally when isAvailable returns true', async () => {
+      const profile: ModelProfile = { ...baseProfile, isAvailable: async () => true }
+      mockGenerateText('response')
+
+      const result = await send(makeRunner(profile), { profile: 'main' }, ['Hello'])
+
+      expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'response' })
+    })
+
+    it('proceeds normally when isAvailable is not defined (backward compat)', async () => {
+      mockGenerateText('response')
+
+      const result = await send(makeRunner(), { profile: 'main' }, ['Hello'])
+
+      expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'response' })
     })
   })
 

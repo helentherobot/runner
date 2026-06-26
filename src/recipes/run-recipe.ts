@@ -2,7 +2,7 @@ import { generateText } from 'ai'
 import type { RunnerConfig } from '../types.js'
 import type { ProviderRegistry } from '../providers/registry.js'
 import type { Recipe, RunResult, RunOptions } from './types.js'
-import { RequestCancelledError } from '../errors.js'
+import { RequestCancelledError, ProviderUnavailableError } from '../errors.js'
 
 export interface RunnerInstance {
   config: RunnerConfig
@@ -25,6 +25,10 @@ export async function runRecipe<TArgs extends unknown[]>(
   const provider = runner.registry.getProvider(profile.provider, secrets)
   const model = provider.model(profile.model)
   const queue = runner.registry.getQueue(r.profile, profile)
+
+  if (profile.isAvailable && !(await profile.isAvailable())) {
+    throw new ProviderUnavailableError(`Profile "${r.profile}" is not available`)
+  }
 
   const prompt = r.prompt(...args)
   const maxOutputTokens = r.maxOutputTokens ?? profile.contextWindowTokens

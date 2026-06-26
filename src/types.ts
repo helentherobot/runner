@@ -32,6 +32,11 @@ export interface ModelProfile {
    * When true (default), tools are filtered each turn via keyword matching in discoverTools().
    */
   progressiveToolDiscovery?: boolean
+  /**
+   * Optional availability check. When defined, called before enqueuing a request.
+   * If it returns false, a ProviderUnavailableError is thrown immediately.
+   */
+  isAvailable?: () => Promise<boolean>
 }
 
 export interface ResolvedSecrets {

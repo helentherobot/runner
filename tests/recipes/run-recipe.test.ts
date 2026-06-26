@@ -3,7 +3,7 @@ import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
 import type { Recipe } from '../../src/recipes/types.js'
 import type { RunOptions } from '../../src/recipes/types.js'
 import type { ModelProfile } from '../../src/types.js'
-import { RequestCancelledError } from '../../src/errors.js'
+import { RequestCancelledError, ProviderUnavailableError } from '../../src/errors.js'
 
 const mockEnqueue = vi.fn()
 const mockModel = {}
@@ -235,6 +235,45 @@ describe('runRecipe()', () => {
     const call = vi.mocked(generateText).mock.calls[0]?.[0]
     expect(call).toBeDefined()
     expect(call!.maxRetries).toBe(3)
+  })
+
+  describe('isAvailable', () => {
+    it('throws ProviderUnavailableError when isAvailable returns false', async () => {
+      const profile: ModelProfile = { ...baseProfile, isAvailable: async () => false }
+      const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+
+      await expect(runRecipe(makeRunner(profile), r, [])).rejects.toThrow(ProviderUnavailableError)
+      expect(mockEnqueue).not.toHaveBeenCalled()
+    })
+
+    it('proceeds normally when isAvailable returns true', async () => {
+      const profile: ModelProfile = { ...baseProfile, isAvailable: async () => true }
+      const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockResolvedValue({
+        text: 'ok',
+        usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+      } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+      const result = await runRecipe(makeRunner(profile), r, [])
+
+      expect(result.text).toBe('ok')
+    })
+
+    it('proceeds normally when isAvailable is not defined (backward compat)', async () => {
+      const r: Recipe<[]> = { profile: 'main', prompt: () => 'hello' }
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockResolvedValue({
+        text: 'ok',
+        usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+      } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+      const result = await runRecipe(makeRunner(), r, [])
+
+      expect(result.text).toBe('ok')
+    })
   })
 
   it('throws RequestCancelledError when caller signal is already aborted', async () => {
