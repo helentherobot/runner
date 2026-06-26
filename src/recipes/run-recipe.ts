@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import type { RunnerConfig } from '../types.js'
+import type { RunnerConfig, ModelProfile } from '../types.js'
 import type { ProviderRegistry } from '../providers/registry.js'
 import type { Recipe, RunResult, RunOptions } from './types.js'
 import { RequestCancelledError, ProviderUnavailableError } from '../errors.js'
@@ -15,11 +15,32 @@ export async function runRecipe<TArgs extends unknown[]>(
   args: TArgs,
   options?: RunOptions,
 ): Promise<RunResult> {
-  const profile = runner.config.profiles[r.profile]
+  const resolved = runner.config.profiles[r.profile]
 
-  if (!profile) {
+  if (!resolved) {
     throw new Error(`Unknown profile: ${r.profile}`)
   }
+
+  if ('kind' in resolved && resolved.kind === 'composite') {
+    let lastError: unknown
+    for (const candidateKey of resolved.candidates) {
+      const candidate = runner.config.profiles[candidateKey]
+      if (!candidate) {
+        throw new Error(`Unknown profile: ${candidateKey}`)
+      }
+      if ('kind' in candidate && candidate.kind === 'composite') {
+        throw new Error(`Nested composite profiles are not allowed: "${candidateKey}" is composite`)
+      }
+      try {
+        return await runRecipe(runner, { ...r, profile: candidateKey }, args, options)
+      } catch (err) {
+        lastError = err
+      }
+    }
+    throw lastError
+  }
+
+  const profile = resolved as ModelProfile
 
   const secrets = runner.config.secrets ?? {}
   const provider = runner.registry.getProvider(profile.provider, secrets)

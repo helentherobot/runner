@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, expectTypeOf } from 'v
 import { zodSchema } from 'ai'
 import type { CoreMessage, ModelMessage } from 'ai'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
-import type { ModelProfile } from '../../src/types.js'
+import type { ModelProfile, AnyProfile } from '../../src/types.js'
 import type { DiscoverableTool, SessionOptions } from '../../src/session/types.js'
 import {
   RequestTimeoutError,
@@ -1140,6 +1140,85 @@ describe('send()', () => {
       expect(secondCall.messages).toContainEqual(toolCallMsg)
       expect(secondCall.messages).toContainEqual(toolResultMsg)
       expect(secondCall.messages).toContainEqual(assistantReply)
+    })
+  })
+
+  describe('composite profiles', () => {
+    const secondProfile: ModelProfile = {
+      ...baseProfile,
+      provider: 'anthropic',
+      model: 'claude-haiku',
+    }
+
+    function makeCompositeRunner(profiles: Record<string, AnyProfile>): RunnerInstance {
+      return {
+        config: {
+          profiles,
+          secrets: { openRouter: 'key', anthropic: 'key' },
+        },
+        registry: {
+          getProvider: mockGetProvider,
+          getQueue: mockGetQueue,
+        } as unknown as RunnerInstance['registry'],
+      }
+    }
+
+    it('uses first candidate when it is available', async () => {
+      mockGenerateText('from first')
+      const runner = makeCompositeRunner({
+        composite: { kind: 'composite', candidates: ['first', 'second'] },
+        first: baseProfile,
+        second: secondProfile,
+      })
+
+      const result = await send(runner, { profile: 'composite' }, ['Hello'])
+
+      expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'from first' })
+      // generateText called only once — never tried second
+      expect(vi.mocked(generateText)).toHaveBeenCalledTimes(1)
+    })
+
+    it('falls back to second candidate when first is unavailable', async () => {
+      mockGenerateText('from second')
+      const unavailableFirst: ModelProfile = {
+        ...baseProfile,
+        isAvailable: async () => false,
+      }
+      const runner = makeCompositeRunner({
+        composite: { kind: 'composite', candidates: ['first', 'second'] },
+        first: unavailableFirst,
+        second: secondProfile,
+      })
+
+      const result = await send(runner, { profile: 'composite' }, ['Hello'])
+
+      expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'from second' })
+    })
+
+    it('throws last error when all candidates fail', async () => {
+      const unavailableA: ModelProfile = { ...baseProfile, isAvailable: async () => false }
+      const unavailableB: ModelProfile = { ...secondProfile, isAvailable: async () => false }
+      const runner = makeCompositeRunner({
+        composite: { kind: 'composite', candidates: ['a', 'b'] },
+        a: unavailableA,
+        b: unavailableB,
+      })
+
+      await expect(send(runner, { profile: 'composite' }, ['Hello'])).rejects.toThrow(
+        ProviderUnavailableError,
+      )
+    })
+
+    it('throws immediately when a candidate is itself composite', async () => {
+      const runner = makeCompositeRunner({
+        composite: { kind: 'composite', candidates: ['nested'] },
+        nested: { kind: 'composite', candidates: ['x'] },
+        x: baseProfile,
+      })
+
+      await expect(send(runner, { profile: 'composite' }, ['Hello'])).rejects.toThrow(
+        /[Nn]ested composite/,
+      )
     })
   })
 })

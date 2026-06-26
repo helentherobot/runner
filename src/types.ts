@@ -39,6 +39,13 @@ export interface ModelProfile {
   isAvailable?: () => Promise<boolean>
 }
 
+export interface CompositeProfile {
+  kind: 'composite'
+  candidates: string[]
+}
+
+export type AnyProfile = ModelProfile | CompositeProfile
+
 export interface ResolvedSecrets {
   openRouter?: string
   google?: string
@@ -49,6 +56,6 @@ export interface ResolvedSecrets {
 }
 
 export interface RunnerConfig {
-  profiles: Record<string, ModelProfile>
+  profiles: Record<string, AnyProfile>
   secrets?: ResolvedSecrets
 }

@@ -2,6 +2,7 @@ import { generateText, stepCountIs } from 'ai'
 import type { ModelMessage, StepResult, Tool, ToolSet } from 'ai'
 import type { RunnerInstance } from '../recipes/run-recipe.js'
 import type { SessionOptions, SendResult } from './types.js'
+import type { ModelProfile } from '../types.js'
 import { discoverTools } from './discover-tools.js'
 import { RequestTimeoutError, RequestCancelledError, ProviderUnavailableError } from '../errors.js'
 
@@ -12,11 +13,32 @@ export async function send(
   options: SessionOptions,
   messages: (ModelMessage | string)[],
 ): Promise<SendResult> {
-  const profile = runner.config.profiles[options.profile]
+  const resolved = runner.config.profiles[options.profile]
 
-  if (!profile) {
+  if (!resolved) {
     throw new Error(`Unknown profile: ${options.profile}`)
   }
+
+  if ('kind' in resolved && resolved.kind === 'composite') {
+    let lastError: unknown
+    for (const candidateKey of resolved.candidates) {
+      const candidate = runner.config.profiles[candidateKey]
+      if (!candidate) {
+        throw new Error(`Unknown profile: ${candidateKey}`)
+      }
+      if ('kind' in candidate && candidate.kind === 'composite') {
+        throw new Error(`Nested composite profiles are not allowed: "${candidateKey}" is composite`)
+      }
+      try {
+        return await send(runner, { ...options, profile: candidateKey }, messages)
+      } catch (err) {
+        lastError = err
+      }
+    }
+    throw lastError
+  }
+
+  const profile = resolved as ModelProfile
 
   const secrets = runner.config.secrets ?? {}
   const provider = runner.registry.getProvider(profile.provider, secrets)

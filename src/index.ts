@@ -1,7 +1,13 @@
 export { Runner } from './runner.js'
 export { withAvailabilityCache } from './availability.js'
 export { RequestTimeoutError, RequestCancelledError, ProviderUnavailableError } from './errors.js'
-export type { RunnerConfig, ModelProfile, QueueConfig } from './types.js'
+export type {
+  RunnerConfig,
+  ModelProfile,
+  CompositeProfile,
+  AnyProfile,
+  QueueConfig,
+} from './types.js'
 
 export { recipe } from './recipes/recipe.js'
 export type { Recipe, RunResult, RunOptions } from './recipes/types.js'

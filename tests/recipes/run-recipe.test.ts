@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { RunnerInstance } from '../../src/recipes/run-recipe.js'
 import type { Recipe } from '../../src/recipes/types.js'
 import type { RunOptions } from '../../src/recipes/types.js'
-import type { ModelProfile } from '../../src/types.js'
+import type { ModelProfile, AnyProfile } from '../../src/types.js'
 import { RequestCancelledError, ProviderUnavailableError } from '../../src/errors.js'
 
 const mockEnqueue = vi.fn()
@@ -273,6 +273,60 @@ describe('runRecipe()', () => {
       const result = await runRecipe(makeRunner(), r, [])
 
       expect(result.text).toBe('ok')
+    })
+  })
+
+  describe('composite profiles', () => {
+    const secondProfile: ModelProfile = {
+      ...baseProfile,
+      provider: 'anthropic',
+      model: 'claude-haiku',
+    }
+
+    function makeCompositeRunner(profiles: Record<string, AnyProfile>): RunnerInstance {
+      return {
+        config: {
+          profiles,
+          secrets: { openRouter: 'key', anthropic: 'key' },
+        },
+        registry: {
+          getProvider: mockGetProvider,
+          getQueue: mockGetQueue,
+        } as unknown as RunnerInstance['registry'],
+      }
+    }
+
+    it('falls back to second candidate when first is unavailable', async () => {
+      const unavailableFirst: ModelProfile = { ...baseProfile, isAvailable: async () => false }
+
+      mockEnqueue.mockImplementation((_scope: string, fn: () => Promise<unknown>) => fn())
+      vi.mocked(generateText).mockResolvedValue({
+        text: 'from second',
+        usage: { inputTokens: 5, outputTokens: 5, cachedInputTokens: 10 },
+      } as unknown as Awaited<ReturnType<typeof generateText>>)
+
+      const runner = makeCompositeRunner({
+        composite: { kind: 'composite', candidates: ['first', 'second'] },
+        first: unavailableFirst,
+        second: secondProfile,
+      })
+
+      const r: Recipe<[]> = { profile: 'composite', prompt: () => 'hello' }
+      const result = await runRecipe(runner, r, [])
+
+      expect(result.text).toBe('from second')
+    })
+
+    it('throws when nested composite candidate is encountered', async () => {
+      const runner = makeCompositeRunner({
+        composite: { kind: 'composite', candidates: ['nested'] },
+        nested: { kind: 'composite', candidates: ['x'] },
+        x: baseProfile,
+      })
+
+      const r: Recipe<[]> = { profile: 'composite', prompt: () => 'hello' }
+
+      await expect(runRecipe(runner, r, [])).rejects.toThrow(/[Nn]ested composite/)
     })
   })
 
