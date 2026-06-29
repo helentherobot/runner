@@ -69,6 +69,7 @@ export async function runRecipe<TArgs extends unknown[]>(
         maxOutputTokens,
         maxRetries: profile.maxRetries ?? 3,
         abortSignal,
+        providerOptions: profile.providerOptions,
       }),
     )
 

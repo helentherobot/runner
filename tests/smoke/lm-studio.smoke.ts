@@ -11,16 +11,19 @@ describe.skipIf(!process.env.LM_STUDIO_BASE_URL)('LM Studio smoke test', () => {
       profiles: {
         'lm-studio': {
           provider: 'lm-studio',
-          model: 'llama-3.2-3b-instruct',
+          model: 'google/gemma-4-12b-qat',
           contextWindowTokens: 8_000,
           requestTimeoutMs: 60_000,
+          providerOptions: {
+            openai: { thinking: { type: 'enabled', budget_tokens: 512 } },
+          },
           queue: { maxConcurrent: 1, requestsPerMinute: 10, affinityMode: false, warmup: false },
         },
       },
       secrets: { lmStudioBaseUrl: process.env.LM_STUDIO_BASE_URL },
     })
 
-    const r = recipe({ profile: 'lm-studio', prompt: () => 'Say hello.', maxOutputTokens: 16 })
+    const r = recipe({ profile: 'lm-studio', prompt: () => 'Say hello.', maxOutputTokens: 100 })
     const result = await runner.run(r, [])
 
     expect(typeof result.text).toBe('string')
