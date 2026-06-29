@@ -16,4 +16,5 @@ export { AnthropicAgentProvider } from './providers/anthropic-agent.js'
 
 export { send } from './session/send.js'
 export type { SessionOptions, SendResult, DiscoverableTool } from './session/types.js'
-export type { StepResult, StopCondition } from 'ai'
+export type { StepResult, StopCondition, ModelMessage, TextPart, ToolCallPart, ToolResultPart, ToolContent } from 'ai'
+export { jsonSchema } from 'ai'
