@@ -40,12 +40,71 @@ const runner = new Runner({
         inputPer1M: 0.1,
         outputPer1M: 0.4,
       },
+      maxOutputTokens: 4_096, // optional — caps output tokens for all calls on this profile
+      providerOptions: {       // optional — forwarded as-is to every generateText call
+        google: { thinkingConfig: { thinkingBudget: 0 } },
+      },
     },
   },
   secrets: {
     google: process.env.GOOGLE_API_KEY,
   },
 })
+```
+
+### Composite profiles — ordered fallback
+
+A profile doesn't have to resolve to a single model. Set `kind: 'composite'` and list `candidates` in priority order. When a candidate fails — for any reason, including an `isAvailable` check returning `false` — the runner moves to the next one automatically.
+
+```ts
+const runner = new Runner({
+  profiles: {
+    'gemma-local': {
+      provider: 'lm-studio',
+      model: 'google/gemma-4-12b-qat',
+      contextWindowTokens: 8_000,
+      requestTimeoutMs: 60_000,
+      isAvailable: async () => {
+        const res = await fetch('http://localhost:1234/v1/models').catch(() => null)
+        return res?.ok ?? false
+      },
+      queue: { maxConcurrent: 1, requestsPerMinute: 10, affinityMode: false, warmup: false },
+    },
+    'haiku-fallback': {
+      provider: 'anthropic-agent',
+      model: 'claude-haiku-4-5',
+      contextWindowTokens: 200_000,
+      requestTimeoutMs: 30_000,
+      queue: { maxConcurrent: 2, requestsPerMinute: 20, affinityMode: false, warmup: false },
+    },
+    primary: {
+      kind: 'composite',
+      candidates: ['gemma-local', 'haiku-fallback'],
+    },
+  },
+  secrets: {},
+})
+```
+
+Composite profiles can't be nested — a candidate must resolve to a `ModelProfile`, not another composite.
+
+#### `isAvailable`
+
+Any `ModelProfile` can declare an `isAvailable` async function. It's called before enqueueing a request. If it returns `false`, a `ProviderUnavailableError` is thrown — which, inside a composite, triggers the next candidate.
+
+#### `withAvailabilityCache`
+
+Availability checks run on every request. Wrap them with `withAvailabilityCache` to cache the result for a TTL:
+
+```ts
+import { withAvailabilityCache } from '@helentherobot/runner'
+
+const checkLmStudio = withAvailabilityCache(async () => {
+  const res = await fetch('http://localhost:1234/v1/models').catch(() => null)
+  return res?.ok ?? false
+}, 30_000) // re-check at most once every 30 s
+
+// use checkLmStudio as isAvailable on your profile
 ```
 
 ### Recipes — single-turn stateless calls
@@ -290,10 +349,11 @@ try {
 }
 ```
 
-| Error                   | When thrown                                                      |
-| ----------------------- | ---------------------------------------------------------------- |
-| `RequestTimeoutError`   | `requestTimeoutMs` fired and all retries were exhausted          |
-| `RequestCancelledError` | The caller's `abortSignal` was aborted before the call completed |
+| Error                     | When thrown                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| `RequestTimeoutError`     | `requestTimeoutMs` fired and all retries were exhausted                                   |
+| `RequestCancelledError`   | The caller's `abortSignal` was aborted before the call completed                          |
+| `ProviderUnavailableError`| `isAvailable()` returned `false`; triggers candidate fallback inside a composite profile  |
 
 ### Tools and progressive discovery
 
@@ -377,15 +437,16 @@ Each model profile gets its own `ProviderQueue` (created lazily by the registry)
 
 ### Supported providers
 
-| Key           | Package                       | Notes                                                                                                                                                                     |
-| ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `open-router` | `@openrouter/ai-sdk-provider` |                                                                                                                                                                           |
-| `google`      | `@ai-sdk/google`              |                                                                                                                                                                           |
-| `openai`      | `@ai-sdk/openai`              |                                                                                                                                                                           |
-| `anthropic`   | `@ai-sdk/anthropic`           |                                                                                                                                                                           |
-| `deepseek`    | `@ai-sdk/openai`              | Uses `https://api.deepseek.com`; requires `deepSeek` key                                                                                                                  |
-| `lm-studio`   | `@ai-sdk/openai`              | Local inference; defaults to `http://localhost:1234/v1`                                                                                                                   |
-| `ollama`      | `ollama-ai-provider`          | ⚠️ Not yet functional — `ollama-ai-provider` targets `LanguageModelV1` and is incompatible with `ai` v6 which requires `LanguageModelV3`. Blocked on an upstream release. |
+| Key                | Package                       | Notes                                                                                                                                                                     |
+| ------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open-router`      | `@openrouter/ai-sdk-provider` |                                                                                                                                                                           |
+| `google`           | `@ai-sdk/google`              |                                                                                                                                                                           |
+| `openai`           | `@ai-sdk/openai`              |                                                                                                                                                                           |
+| `anthropic`        | `@ai-sdk/anthropic`           |                                                                                                                                                                           |
+| `anthropic-agent`  | `@ai-sdk/anthropic`           | Uses Claude's OAuth credentials from `~/.claude/.credentials.json` — no API key needed. Intended for agent-to-agent calls within a Claude Code environment.              |
+| `deepseek`         | `@ai-sdk/openai`              | Uses `https://api.deepseek.com`; requires `deepSeek` key                                                                                                                  |
+| `lm-studio`        | `@ai-sdk/openai`              | Local inference; defaults to `http://localhost:1234/v1`                                                                                                                   |
+| `ollama`           | `ollama-ai-provider`          | ⚠️ Not yet functional — `ollama-ai-provider` targets `LanguageModelV1` and is incompatible with `ai` v6 which requires `LanguageModelV3`. Blocked on an upstream release. |
 
 Provider secrets are passed in `RunnerConfig.secrets`:
 
