@@ -41,7 +41,8 @@ const runner = new Runner({
         outputPer1M: 0.4,
       },
       maxOutputTokens: 4_096, // optional — caps output tokens for all calls on this profile
-      providerOptions: {       // optional — forwarded as-is to every generateText call
+      providerOptions: {
+        // optional — forwarded as-is to every generateText call
         google: { thinkingConfig: { thinkingBudget: 0 } },
       },
     },
@@ -349,11 +350,11 @@ try {
 }
 ```
 
-| Error                     | When thrown                                                                               |
-| ------------------------- | ----------------------------------------------------------------------------------------- |
-| `RequestTimeoutError`     | `requestTimeoutMs` fired and all retries were exhausted                                   |
-| `RequestCancelledError`   | The caller's `abortSignal` was aborted before the call completed                          |
-| `ProviderUnavailableError`| `isAvailable()` returned `false`; triggers candidate fallback inside a composite profile  |
+| Error                      | When thrown                                                                              |
+| -------------------------- | ---------------------------------------------------------------------------------------- |
+| `RequestTimeoutError`      | `requestTimeoutMs` fired and all retries were exhausted                                  |
+| `RequestCancelledError`    | The caller's `abortSignal` was aborted before the call completed                         |
+| `ProviderUnavailableError` | `isAvailable()` returned `false`; triggers candidate fallback inside a composite profile |
 
 ### Tools and progressive discovery
 
@@ -437,16 +438,16 @@ Each model profile gets its own `ProviderQueue` (created lazily by the registry)
 
 ### Supported providers
 
-| Key                | Package                       | Notes                                                                                                                                                                     |
-| ------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `open-router`      | `@openrouter/ai-sdk-provider` |                                                                                                                                                                           |
-| `google`           | `@ai-sdk/google`              |                                                                                                                                                                           |
-| `openai`           | `@ai-sdk/openai`              |                                                                                                                                                                           |
-| `anthropic`        | `@ai-sdk/anthropic`           |                                                                                                                                                                           |
-| `anthropic-agent`  | `@ai-sdk/anthropic`           | Uses Claude's OAuth credentials from `~/.claude/.credentials.json` — no API key needed. Intended for agent-to-agent calls within a Claude Code environment.              |
-| `deepseek`         | `@ai-sdk/openai`              | Uses `https://api.deepseek.com`; requires `deepSeek` key                                                                                                                  |
-| `lm-studio`        | `@ai-sdk/openai`              | Local inference; defaults to `http://localhost:1234/v1`                                                                                                                   |
-| `ollama`           | `ollama-ai-provider`          | ⚠️ Not yet functional — `ollama-ai-provider` targets `LanguageModelV1` and is incompatible with `ai` v6 which requires `LanguageModelV3`. Blocked on an upstream release. |
+| Key               | Package                       | Notes                                                                                                                                                                     |
+| ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open-router`     | `@openrouter/ai-sdk-provider` |                                                                                                                                                                           |
+| `google`          | `@ai-sdk/google`              |                                                                                                                                                                           |
+| `openai`          | `@ai-sdk/openai`              |                                                                                                                                                                           |
+| `anthropic`       | `@ai-sdk/anthropic`           |                                                                                                                                                                           |
+| `anthropic-agent` | `@ai-sdk/anthropic`           | Uses Claude's OAuth credentials from `~/.claude/.credentials.json` — no API key needed. Intended for agent-to-agent calls within a Claude Code environment.               |
+| `deepseek`        | `@ai-sdk/openai`              | Uses `https://api.deepseek.com`; requires `deepSeek` key                                                                                                                  |
+| `lm-studio`       | `@ai-sdk/openai`              | Local inference; defaults to `http://localhost:1234/v1`                                                                                                                   |
+| `ollama`          | `ollama-ai-provider`          | ⚠️ Not yet functional — `ollama-ai-provider` targets `LanguageModelV1` and is incompatible with `ai` v6 which requires `LanguageModelV3`. Blocked on an upstream release. |
 
 Provider secrets are passed in `RunnerConfig.secrets`:
 
