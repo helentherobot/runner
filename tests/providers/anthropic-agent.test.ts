@@ -34,7 +34,6 @@ describe('AnthropicAgentProvider', () => {
     expect(mockReadFile).toHaveBeenCalledWith('/fake/path/.credentials.json', 'utf-8')
     expect(mockCreateAnthropic).toHaveBeenCalledWith({
       authToken: 'test-oauth-token',
-      headers: { 'anthropic-beta': 'oauth-2025-04-20' },
     })
 
     const mockModel = {} as LanguageModel

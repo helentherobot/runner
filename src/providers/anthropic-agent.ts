@@ -27,7 +27,6 @@ export class AnthropicAgentProvider implements Provider {
 
     this.#client = createAnthropic({
       authToken: token,
-      headers: { 'anthropic-beta': 'oauth-2025-04-20' },
     })
   }
 
