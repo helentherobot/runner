@@ -10,7 +10,9 @@ const hasCredentials = (() => {
     const { readFileSync } = require('node:fs')
     const { resolve } = require('node:path')
     const { homedir } = require('node:os')
-    const data = JSON.parse(readFileSync(resolve(homedir(), '.claude', '.credentials.json'), 'utf-8'))
+    const data = JSON.parse(
+      readFileSync(resolve(homedir(), '.claude', '.credentials.json'), 'utf-8'),
+    )
     return !!data?.claudeAiOauth?.accessToken
   } catch {
     return false
@@ -32,7 +34,11 @@ describe.skipIf(!hasCredentials)('Anthropic Agent SDK smoke test', () => {
       secrets: {},
     })
 
-    const r = recipe({ profile: 'haiku', prompt: () => 'Say hello in one sentence.', maxOutputTokens: 32 })
+    const r = recipe({
+      profile: 'haiku',
+      prompt: () => 'Say hello in one sentence.',
+      maxOutputTokens: 32,
+    })
     const result = await runner.run(r, [])
 
     expect(typeof result.text).toBe('string')
