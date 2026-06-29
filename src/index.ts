@@ -12,8 +12,6 @@ export type {
 export { recipe } from './recipes/recipe.js'
 export type { Recipe, RunResult, RunOptions } from './recipes/types.js'
 
-export { AnthropicAgentProvider } from './providers/anthropic-agent.js'
-
 export { send } from './session/send.js'
 export type { SessionOptions, SendResult, DiscoverableTool } from './session/types.js'
 export type {

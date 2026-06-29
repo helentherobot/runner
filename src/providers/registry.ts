@@ -9,7 +9,6 @@ import { AnthropicProvider } from './anthropic.js'
 import { OllamaProvider } from './ollama.js'
 import { DeepSeekProvider } from './deepseek.js'
 import { LmStudioProvider } from './lm-studio.js'
-import { AnthropicAgentProvider } from './anthropic-agent.js'
 
 export class ProviderRegistry {
   readonly #config: RunnerConfig
@@ -46,8 +45,6 @@ export class ProviderRegistry {
         return new DeepSeekProvider(secrets.deepSeek ?? '')
       case 'lm-studio':
         return new LmStudioProvider(secrets.lmStudioBaseUrl)
-      case 'anthropic-agent':
-        return new AnthropicAgentProvider()
       default:
         throw new Error(`Unknown provider key: ${key}`)
     }

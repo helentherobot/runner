@@ -53,12 +53,6 @@ vi.mock('../../src/providers/lm-studio.js', () => ({
   }),
 }))
 
-vi.mock('../../src/providers/anthropic-agent.js', () => ({
-  AnthropicAgentProvider: vi.fn(function (this: Record<string, unknown>) {
-    this.model = vi.fn().mockReturnValue({})
-  }),
-}))
-
 vi.mock('ai', () => ({
   generateText: vi.fn().mockResolvedValue({}),
 }))
@@ -70,7 +64,6 @@ import { AnthropicProvider } from '../../src/providers/anthropic.js'
 import { OllamaProvider } from '../../src/providers/ollama.js'
 import { DeepSeekProvider } from '../../src/providers/deepseek.js'
 import { LmStudioProvider } from '../../src/providers/lm-studio.js'
-import { AnthropicAgentProvider } from '../../src/providers/anthropic-agent.js'
 
 const baseProfile: ModelProfile = {
   provider: 'open-router',
@@ -180,11 +173,5 @@ describe('ProviderRegistry — secrets wiring', () => {
     const registry = new ProviderRegistry(baseConfig)
     registry.getProvider('lm-studio', secretsWithoutBaseUrl)
     expect(LmStudioProvider).toHaveBeenCalledWith(undefined)
-  })
-
-  it('constructs AnthropicAgentProvider with no arguments', () => {
-    const registry = new ProviderRegistry(baseConfig)
-    registry.getProvider('anthropic-agent', secrets)
-    expect(AnthropicAgentProvider).toHaveBeenCalledWith()
   })
 })

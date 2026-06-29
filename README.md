@@ -71,19 +71,19 @@ const runner = new Runner({
       },
       queue: { maxConcurrent: 1, requestsPerMinute: 10, affinityMode: false, warmup: false },
     },
-    'haiku-fallback': {
-      provider: 'anthropic-agent',
-      model: 'claude-haiku-4-5',
+    'sonnet-fallback': {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5',
       contextWindowTokens: 200_000,
       requestTimeoutMs: 30_000,
       queue: { maxConcurrent: 2, requestsPerMinute: 20, affinityMode: false, warmup: false },
     },
     primary: {
       kind: 'composite',
-      candidates: ['gemma-local', 'haiku-fallback'],
+      candidates: ['gemma-local', 'sonnet-fallback'],
     },
   },
-  secrets: {},
+  secrets: { anthropic: process.env.ANTHROPIC_API_KEY },
 })
 ```
 
@@ -438,16 +438,15 @@ Each model profile gets its own `ProviderQueue` (created lazily by the registry)
 
 ### Supported providers
 
-| Key               | Package                       | Notes                                                                                                                                                                     |
-| ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `open-router`     | `@openrouter/ai-sdk-provider` |                                                                                                                                                                           |
-| `google`          | `@ai-sdk/google`              |                                                                                                                                                                           |
-| `openai`          | `@ai-sdk/openai`              |                                                                                                                                                                           |
-| `anthropic`       | `@ai-sdk/anthropic`           |                                                                                                                                                                           |
-| `anthropic-agent` | `@ai-sdk/anthropic`           | Uses Claude's OAuth credentials from `~/.claude/.credentials.json` — no API key needed. Intended for agent-to-agent calls within a Claude Code environment.               |
-| `deepseek`        | `@ai-sdk/openai`              | Uses `https://api.deepseek.com`; requires `deepSeek` key                                                                                                                  |
-| `lm-studio`       | `@ai-sdk/openai`              | Local inference; defaults to `http://localhost:1234/v1`                                                                                                                   |
-| `ollama`          | `ollama-ai-provider`          | ⚠️ Not yet functional — `ollama-ai-provider` targets `LanguageModelV1` and is incompatible with `ai` v6 which requires `LanguageModelV3`. Blocked on an upstream release. |
+| Key           | Package                       | Notes                                                                                                                                                                     |
+| ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open-router` | `@openrouter/ai-sdk-provider` |                                                                                                                                                                           |
+| `google`      | `@ai-sdk/google`              |                                                                                                                                                                           |
+| `openai`      | `@ai-sdk/openai`              |                                                                                                                                                                           |
+| `anthropic`   | `@ai-sdk/anthropic`           |                                                                                                                                                                           |
+| `deepseek`    | `@ai-sdk/openai`              | Uses `https://api.deepseek.com`; requires `deepSeek` key                                                                                                                  |
+| `lm-studio`   | `@ai-sdk/openai`              | Local inference; defaults to `http://localhost:1234/v1`                                                                                                                   |
+| `ollama`      | `ollama-ai-provider`          | ⚠️ Not yet functional — `ollama-ai-provider` targets `LanguageModelV1` and is incompatible with `ai` v6 which requires `LanguageModelV3`. Blocked on an upstream release. |
 
 Provider secrets are passed in `RunnerConfig.secrets`:
 
