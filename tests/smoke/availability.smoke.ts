@@ -27,49 +27,41 @@ const sharedProfiles = {
 }
 
 describe.skipIf(!process.env.LM_STUDIO_BASE_URL)('Availability smoke tests', () => {
-  it(
-    'uses gemma when lm-studio is available (primary succeeds)',
-    { timeout: 90_000 },
-    async () => {
-      const runner = new Runner({
-        profiles: {
-          ...sharedProfiles,
-          primary: { kind: 'composite', candidates: ['lm-studio-gemma', 'agent-haiku'] },
+  it('uses gemma when lm-studio is available (primary succeeds)', { timeout: 90_000 }, async () => {
+    const runner = new Runner({
+      profiles: {
+        ...sharedProfiles,
+        primary: { kind: 'composite', candidates: ['lm-studio-gemma', 'agent-haiku'] },
+      },
+      secrets: { lmStudioBaseUrl: process.env.LM_STUDIO_BASE_URL },
+    })
+
+    const r = recipe({ profile: 'primary', prompt: () => 'Say hello.', maxOutputTokens: 100 })
+    const result = await runner.run(r, [])
+
+    expect(typeof result.text).toBe('string')
+    expect(result.text.length).toBeGreaterThan(0)
+    expect(result.usage.inputTokens).toBeGreaterThan(0)
+  })
+
+  it('falls back to haiku when lm-studio reports unavailable', { timeout: 60_000 }, async () => {
+    const runner = new Runner({
+      profiles: {
+        ...sharedProfiles,
+        'lm-studio-gemma': {
+          ...sharedProfiles['lm-studio-gemma'],
+          isAvailable: async () => false,
         },
-        secrets: { lmStudioBaseUrl: process.env.LM_STUDIO_BASE_URL },
-      })
+        primary: { kind: 'composite', candidates: ['lm-studio-gemma', 'agent-haiku'] },
+      },
+      secrets: { lmStudioBaseUrl: process.env.LM_STUDIO_BASE_URL },
+    })
 
-      const r = recipe({ profile: 'primary', prompt: () => 'Say hello.', maxOutputTokens: 100 })
-      const result = await runner.run(r, [])
+    const r = recipe({ profile: 'primary', prompt: () => 'Say hello.', maxOutputTokens: 16 })
+    const result = await runner.run(r, [])
 
-      expect(typeof result.text).toBe('string')
-      expect(result.text.length).toBeGreaterThan(0)
-      expect(result.usage.inputTokens).toBeGreaterThan(0)
-    },
-  )
-
-  it(
-    'falls back to haiku when lm-studio reports unavailable',
-    { timeout: 60_000 },
-    async () => {
-      const runner = new Runner({
-        profiles: {
-          ...sharedProfiles,
-          'lm-studio-gemma': {
-            ...sharedProfiles['lm-studio-gemma'],
-            isAvailable: async () => false,
-          },
-          primary: { kind: 'composite', candidates: ['lm-studio-gemma', 'agent-haiku'] },
-        },
-        secrets: { lmStudioBaseUrl: process.env.LM_STUDIO_BASE_URL },
-      })
-
-      const r = recipe({ profile: 'primary', prompt: () => 'Say hello.', maxOutputTokens: 16 })
-      const result = await runner.run(r, [])
-
-      expect(typeof result.text).toBe('string')
-      expect(result.text.length).toBeGreaterThan(0)
-      expect(result.usage.inputTokens).toBeGreaterThan(0)
-    },
-  )
+    expect(typeof result.text).toBe('string')
+    expect(result.text.length).toBeGreaterThan(0)
+    expect(result.usage.inputTokens).toBeGreaterThan(0)
+  })
 })
