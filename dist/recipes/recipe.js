@@ -1,3 +1,3 @@
 export function recipe(def) {
-    return def;
+  return def
 }

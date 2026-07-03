@@ -1,10 +1,10 @@
 export declare class RequestTimeoutError extends Error {
-    constructor(retries: number);
+  constructor(retries: number)
 }
 export declare class RequestCancelledError extends Error {
-    constructor();
+  constructor()
 }
 export declare class ProviderUnavailableError extends Error {
-    constructor(message: string);
+  constructor(message: string)
 }
 //# sourceMappingURL=errors.d.ts.map

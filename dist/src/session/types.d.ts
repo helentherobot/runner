@@ -1,20 +1,20 @@
-import type { Tool, ModelMessage } from 'ai';
+import type { Tool, ModelMessage } from 'ai'
 export type DiscoverableTool = Tool<any, any> & {
-    name: string;
-    keywords?(): string[];
-};
+  name: string
+  keywords?(): string[]
+}
 export interface SessionOptions {
-    profile: string;
-    systemPrompt?: string;
-    tools?: DiscoverableTool[];
-    scope?: string;
+  profile: string
+  systemPrompt?: string
+  tools?: DiscoverableTool[]
+  scope?: string
 }
 export interface SendResult {
-    messages: ModelMessage[];
-    usage: {
-        inputTokens: number;
-        outputTokens: number;
-        totalCostUsd: number | undefined;
-    };
+  messages: ModelMessage[]
+  usage: {
+    inputTokens: number
+    outputTokens: number
+    totalCostUsd: number | undefined
+  }
 }
 //# sourceMappingURL=types.d.ts.map
