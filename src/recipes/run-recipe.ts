@@ -75,6 +75,8 @@ export async function runRecipe<TArgs extends unknown[]>(
 
     const inputTokens = result.usage.inputTokens ?? 0
     const outputTokens = result.usage.outputTokens ?? 0
+    const reasoningTokens = result.usage.reasoningTokens ?? undefined
+    const cachedInputTokens = result.usage.cachedInputTokens ?? undefined
 
     const totalCostUsd = profile.costs
       ? (inputTokens / 1_000_000) * profile.costs.inputPer1M +
@@ -87,6 +89,8 @@ export async function runRecipe<TArgs extends unknown[]>(
         inputTokens,
         outputTokens,
         totalCostUsd,
+        ...(reasoningTokens != null ? { reasoningTokens } : {}),
+        ...(cachedInputTokens != null ? { cachedInputTokens } : {}),
       },
     }
   } catch (err) {

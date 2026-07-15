@@ -15,5 +15,7 @@ export interface RunResult {
     inputTokens: number
     outputTokens: number
     totalCostUsd: number | undefined
+    reasoningTokens?: number
+    cachedInputTokens?: number
   }
 }

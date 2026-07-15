@@ -48,5 +48,7 @@ export interface SendResult {
     inputTokens: number
     outputTokens: number
     totalCostUsd: number | undefined
+    reasoningTokens?: number
+    cachedInputTokens?: number
   }
 }

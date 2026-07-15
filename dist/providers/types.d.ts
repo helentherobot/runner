@@ -1,5 +1,5 @@
-import type { LanguageModel } from 'ai'
+import type { LanguageModel } from 'ai';
 export interface Provider {
-  model(key: string): LanguageModel
+    model(key: string): LanguageModel;
 }
 //# sourceMappingURL=types.d.ts.map
